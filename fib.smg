@@ -1,0 +1,17 @@
+fn fib(let k) {
+	if (k < 2) {
+		return 1;
+	}
+	return fib(k-1)+fib(k-2);
+}
+fn listFibs(let k) {
+	if (k < 7) {
+		println fib(k);
+		listFibs(k+1);
+		println k;
+		return k;
+	}
+	println k;
+	return k;
+}
+listFibs(4);

@@ -1,0 +1,257 @@
+#ifndef parser_hpp
+#define parser_hpp
+#include <iostream>
+#include <vector>
+#include "ast.hpp"
+#include "token.hpp"
+using namespace std;
+
+
+class Parser {
+    private:    
+        vector<Token> tokens;
+        int tpos;
+        void init(vector<Token>& tk) {
+            tokens = tk;
+            tpos = 0;
+        }
+        void advance() {
+            tpos++;
+        }
+        bool done() {
+            return lookahead() == TK_EOI;
+        }
+        bool expect(TKSymbol symbol) {
+            //cout<<"Lookahead: "<<current().getSymbol()<<endl;
+            //cout<<"Expecting: "<<symbol<<endl;
+            return symbol == lookahead();
+        }
+        bool match(TKSymbol symbol) {
+            if (expect(symbol)) {
+                cout<<"\n----------------\nMatched "<<current().getString()<<"\n-------------------"<<endl;
+                advance();
+                return true;
+            }
+            cout<<"Mismatched token: "<<current().getString()<<"Thought it was "<<symbol<<endl;
+            return false;
+        }
+        Token& current() {
+            return tokens[tpos];
+        }
+        TKSymbol lookahead() {
+            return tokens[tpos].getSymbol();
+        }
+        astnode* argsList() {
+            cout<<"args list"<<endl;
+            astnode d, *t = &d;
+            while (!expect(TK_RPAREN)) {
+                if (expect(TK_COMMA))
+                    match(TK_COMMA);
+                t->next = expression();
+                t = t->next;
+            }
+            return d.next;
+        }
+        astnode* paramList() {
+            cout<<"param list"<<endl;
+            astnode d, *t = &d;
+            while (!expect(TK_RPAREN)) {
+                if (expect(TK_COMMA))
+                    match(TK_COMMA);
+                t->next = statement();
+                t = t->next;
+            }
+            return d.next;
+        }
+        astnode* primary() {
+            cout<<"primary expr"<<endl;
+            astnode* n = nullptr;
+            if (expect(TK_NUM)) {
+                n = new astnode(CONST_EXPR, current());
+                match(TK_NUM);
+            } else if (expect(TK_STRING)) {
+                n = new astnode(CONST_EXPR, current());
+                match(TK_STRING);
+            } else if (expect(TK_ID)) {
+                n = new astnode(ID_EXPR, current());
+                match(TK_ID);
+            } else if (expect(TK_LPAREN)) {
+                match(TK_LPAREN);
+                n = expression();
+                match(TK_RPAREN);
+            } else if (expect(TK_LAMBDA)) {
+                n = new astnode(LAMBDA_EXPR, current());
+                match(TK_LAMBDA);
+                match(TK_LPAREN);
+                n->left = paramList();
+                match(TK_RPAREN);
+                match(TK_LCURLY);
+                n->right = stmt_list();
+                match(TK_RCURLY);
+            }
+            if (expect(TK_LPAREN)) {
+                astnode* fc = new astnode(FUNC_EXPR, current());
+                fc->left = n;
+                match(TK_LPAREN);
+                fc->right = argsList();
+                match(TK_RPAREN);
+                n = fc;
+            }
+            return n;
+        }
+        astnode* unary() {
+            cout<<"unary expr"<<endl;
+            astnode* n = nullptr;
+            if (expect(TK_SUB)) {
+                n = new astnode(UOP_EXPR, current());
+                match(TK_SUB);
+                n->left = unary();
+            } else {
+                n = primary();
+            }
+            return n;
+        }
+        astnode* factor() {
+            cout<<"factor"<<endl;
+            astnode* n = unary();
+            while (expect(TK_MUL) || expect(TK_DIV)) {
+                astnode* q = new astnode(BIN_EXPR, current());
+                match(lookahead());
+                q->left = n;
+                q->right = unary();
+                n = q;
+            }
+            return n;
+        }
+        astnode* term() {
+            cout<<"term"<<endl;
+            astnode* n = factor();
+            while (expect(TK_ADD) || expect(TK_SUB)) {
+                astnode* q = new astnode(BIN_EXPR, current());
+                match(lookahead());
+                q->left = n;
+                q->right = factor();
+                n = q;
+            }
+            return n;
+        }
+        astnode* relopExpr() {
+            cout<<"relop expr"<<endl;
+            astnode* n = term();
+            while (expect(TK_LT) || expect(TK_GT)) {
+                astnode* q = new astnode(BIN_EXPR, current());
+                match(lookahead());
+                q->left = n;
+                q->right = term();
+                n = q;
+            }
+            return n;
+        }
+        astnode* compExpr() {
+            cout<<"comp expr"<<endl; 
+            astnode* n = relopExpr();
+            while (expect(TK_EQU) || expect(TK_NEQ)) {
+                astnode* q = new astnode(BIN_EXPR, current());
+                match(lookahead());
+                q->left = n;
+                q->right = relopExpr();
+                n = q;
+            }
+            return n;
+        }
+        astnode* expression() {
+            cout<<"expr"<<endl;
+            astnode* n = compExpr();
+            while (expect(TK_ASSIGN)) {
+                astnode* q = new astnode(BIN_EXPR, current());
+                match(TK_ASSIGN);
+                q->left = n;
+                q->right = compExpr();
+                n = q;
+            }
+            return n;
+        }
+        astnode* statement() {
+            cout<<"statement"<<endl;
+            astnode* n = nullptr;
+            switch (lookahead()) {
+                case TK_PRINTLN: {
+                    n = new astnode(PRINT_STMT, current());
+                    match(TK_PRINTLN);
+                    n->left = expression();
+                } break;
+                case TK_IF: {
+                    n = new astnode(IF_STMT, current());
+                    match(TK_IF);
+                    match(TK_LPAREN);
+                    n->left = expression();
+                    match(TK_RPAREN);
+                    match(TK_LCURLY);
+                    n->right = stmt_list();
+                    match(TK_RCURLY);
+                    if (expect(TK_ELSE)) {
+                        astnode* e = new astnode(ELSE_STMT, current());
+                        match(TK_ELSE);
+                        match(TK_LCURLY);
+                        e->right = stmt_list();
+                        e->left = n->right;
+                        n->right = e;
+                        match(TK_RCURLY);
+                    }
+                } break;
+                case TK_FN: {
+                    n = new astnode(DEF_STMT, current());
+                    match(TK_FN);
+                    n->token = current();
+                    match(TK_ID);
+                    match(TK_LPAREN);
+                    n->left = paramList();
+                    match(TK_RPAREN);
+                    match(TK_LCURLY);
+                    n->right = stmt_list();
+                    match(TK_RCURLY);
+                } break;
+                case TK_LET: {
+                    n = new astnode(LET_STMT, current());
+                    match(TK_LET);
+                    n->left = expression();
+                } break;
+                case TK_RETURN: {
+                    n = new astnode(RETURN_STMT, current());
+                    match(TK_RETURN);
+                    n->left = expression();
+                } break;
+                default:
+                    n = new astnode(EXPR_STMT, current());
+                    n->left = expression();
+            }
+            if (expect(TK_SEMI))
+                    match(TK_SEMI);
+            return n;
+        }
+        astnode* stmt_list() {
+            cout<<"stmt list"<<endl;
+            astnode* x = statement();
+            astnode* m = x;
+            while (!expect(TK_EOI) && !expect(TK_RCURLY)) {
+                astnode* q = statement();
+                if (m == nullptr) {
+                    m = x = q;
+                } else {
+                    m->next = q;
+                    m = q;
+                }
+            }
+            return x;
+        }
+    public:
+        Parser() {
+
+        }
+        astnode* parse(vector<Token> tokens) {
+            init(tokens);
+            return stmt_list();
+        }
+}; 
+
+#endif
