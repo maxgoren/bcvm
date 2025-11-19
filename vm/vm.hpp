@@ -1,7 +1,7 @@
 #ifndef vm_hpp
 #define vm_hpp
 #include "stackitem.hpp"
-#include "bytecodecompiler.hpp"
+#include "instruction.hpp"
 using namespace std;
 
 static const int MAX_OP_STACK = 1255;
@@ -53,6 +53,12 @@ class VM {
             callstk[fp++] = ActivationRecord(ip, inst.operand[1].intval);
             inparams = true;
         }
+        void closeScope() {
+            ip = callstk[fp-1].returnAddress;
+            fp--;
+            if (verbLev > 1)
+                cout<<"Leaving scope."<<endl;
+        }
         void enterFunction(Instruction& inst) {
             callstk[fp-1].returnAddress = ip;
             //cout<<"jump to addres: "<<ip<<endl;
@@ -66,12 +72,6 @@ class VM {
             if (func.type != CLOSURE) ip =  inst.operand[0].intval;
             else ip = func.closure->func->start_ip;
             inparams = false;
-        }
-        void closeScope() {
-            ip = callstk[fp-1].returnAddress;
-            fp--;
-            if (verbLev > 1)
-                cout<<"Leaving scope."<<endl;
         }
         void global_store() {
             StackItem t = pop();
@@ -87,17 +87,36 @@ class VM {
             if (verbLev > 1)
                 cout<<"Stored local at "<<t.intval<<" in scope "<<depth<<endl;
         }
-        Instruction& fetch() {
-            return ip < codePage.size() && ip > -1 ?codePage[ip++]:haltSentinel;
+        void indexed_store(Instruction& inst) {
+            StackItem index = pop();
+            StackItem list = pop();
+            list.list->at(index.numval) = pop();
+            push(list);
+            push(index);
         }
-        void printInstruction(Instruction& inst) {
-            cout<<ip<<": [0x0"<<inst.op<<"("<<instrStr[inst.op]<<"), "<<inst.operand[0].toString()<<","<<inst.operand[1].toString()<<"]  \n";
+        void loadConst(Instruction& inst) {
+            push(inst.operand[0]);
+        }
+        void loadGlobal(Instruction& inst) {
+            if (verbLev > 1)
+                cout<<"Load "<<opstk[(MAX_OP_STACK-1) - inst.operand[0].intval].toString()<<" from "<<((MAX_OP_STACK-1) - inst.operand[0].intval)<<endl;
+            push(opstk[(MAX_OP_STACK-1) - inst.operand[0].intval]);
+        }
+        void loadLocal(Instruction& inst) {
+            push(callstk[fp-(inparams ? 2:1)].locals[inst.operand[0].intval]);
+        }
+        void loadIndexed(Instruction& inst) {
+            StackItem t = pop();
+            push(pop().list->at(t.numval));
         }
         void branchOnFalse(Instruction& inst) {
             bool tmp = pop().boolval;
             if (tmp == false) {
                 ip = inst.operand[0].intval;
             }
+        }
+        void uncondBranch(Instruction& inst) {
+            ip = inst.operand[0].intval;
         }
         void unaryOperation(Instruction& inst) {
             switch (inst.operand[0].intval) {
@@ -111,6 +130,37 @@ class VM {
             }
         }
         void binaryOperation(Instruction& inst) {
+            if (inst.operand[0].intval > 6) {
+                relationOperation(inst);
+            } else {
+                arithmeticOperation(inst);
+            }
+        }
+        void relationOperation(Instruction& inst) {
+            switch (inst.operand[0].intval) {
+                case VM_LT:   {
+                    StackItem rhs = pop();
+                    StackItem lhs = pop();
+                    push(StackItem(lhs.compareTo(rhs)));
+                } break;
+                case VM_GT:   {
+                    StackItem rhs = pop();
+                    StackItem lhs = pop();
+                    push(StackItem(rhs.compareTo(lhs)));
+                } break;
+                case VM_EQU:  {
+                    StackItem rhs = pop();
+                    StackItem lhs = pop();
+                    push(StackItem(!lhs.compareTo(rhs) && !rhs.compareTo(lhs)));
+                } break;
+                case VM_NEQ: {
+                    StackItem rhs = pop();
+                    StackItem lhs = pop();
+                    push(StackItem(lhs.compareTo(rhs) || rhs.compareTo(lhs)));
+                } break;
+            }
+        }
+        void arithmeticOperation(Instruction& inst) {
             switch (inst.operand[0].intval) {
                 case VM_ADD:  {
                     StackItem rhs = pop();
@@ -132,64 +182,21 @@ class VM {
                     StackItem rhs = pop();
                     top().mod(rhs);
                 } break;
-                case VM_LT:   {
-                    StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(lhs.compareTo(rhs)));
-                } break;
-                case VM_GT:   {
-                    StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(rhs.compareTo(lhs)));
-                } break;
-                case VM_EQU:  {
-                    StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(!lhs.compareTo(rhs) && !rhs.compareTo(lhs)));
-                } break;
-                case VM_NEQ: {
-                    StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(lhs.compareTo(rhs) || rhs.compareTo(lhs)));
-                } break;
                 default:
                     break;
             }
-        }
-        void loadConst(Instruction& inst) {
-            push(inst.operand[0]);
-        }
-        void loadGlobal(Instruction& inst) {
-            if (verbLev > 1)
-                cout<<"Load "<<opstk[(MAX_OP_STACK-1) - inst.operand[0].intval].toString()<<" from "<<((MAX_OP_STACK-1) - inst.operand[0].intval)<<endl;
-            push(opstk[(MAX_OP_STACK-1) - inst.operand[0].intval]);
-        }
-        void loadLocal(Instruction& inst) {
-            push(callstk[fp-(inparams ? 2:1)].locals[inst.operand[0].intval]);
         }
         void appendList() {
             StackItem item = pop();
             if (top().type == LIST)
                 top().list->push_back(item);
         }
-        void firstList() {
-            if (top().type == LIST) 
-                push(top().list->front()); 
-        }
-        void printTopOfStack() {
-            cout<<pop().toString()<<endl;
-        }
         void haltvm() {
             running = false;
         }
-        void uncondBranch(Instruction& inst) {
-            ip = inst.operand[0].intval;
-        }
         void execute(Instruction& inst) {
             switch (inst.op) {
-                case append:   {  appendList();   } break;
-                case first:    {  firstList();  } break;
-                case rest:     {    } break;
+                case append:   { appendList();   } break;
                 case call:     { openScope(inst); } break;
                 case entfun:   { enterFunction(inst); } break;
                 case retfun:   { closeScope(); } break;
@@ -201,26 +208,26 @@ class VM {
                 case halt:     { haltvm(); } break;
                 case stglobal: { global_store(); } break;
                 case stlocal:  { local_store(inst.operand[0].intval); } break;
+                case stfield:  { indexed_store(inst); } break;
                 case ldconst:  { loadConst(inst); } break;
                 case ldglobal: { loadGlobal(inst); } break;
                 case ldlocal:  { loadLocal(inst); } break;
                 case ldlocaladdr:  { push(inst.operand[0].intval); } break;
                 case ldglobaladdr: { push((MAX_OP_STACK-1) - inst.operand[0].intval); } break;
-                case ldfield:      { 
-                    StackItem t = pop();
-                    push(pop().list->at(t.numval));
-                } break;
-                case stfield: {
-                    StackItem index = pop();
-                    StackItem list = pop();
-                    list.list->at(index.numval) = pop();
-                    push(list);
-                    push(index);
-                } break;
+                case ldfield:      { loadIndexed(inst); } break;
                 case label: { /* nop() */ } break;
                 default:
                     break;
             }       
+        }
+        Instruction& fetch() {
+            return ip < codePage.size() && ip > -1 ?codePage[ip++]:haltSentinel;
+        }
+        void printInstruction(Instruction& inst) {
+            cout<<ip<<": [0x0"<<inst.op<<"("<<instrStr[inst.op]<<"), "<<inst.operand[0].toString()<<","<<inst.operand[1].toString()<<"]  \n";
+        }
+        void printTopOfStack() {
+            cout<<pop().toString()<<endl;
         }
         void printOperandStack() {
             for (int i = 0; i < sp; i++) {

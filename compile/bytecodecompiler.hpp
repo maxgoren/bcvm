@@ -1,6 +1,7 @@
 #ifndef bytecodecompiler_hpp
 #define bytecodecompiler_hpp
-#include "parse/ast.hpp"
+#include "../parse/ast.hpp"
+#include "../vm/instruction.hpp"
 #include "scopingst.hpp"
 using namespace std;
 

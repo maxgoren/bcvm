@@ -4,9 +4,9 @@
 #include <map>
 #include "parse/lexer.hpp"
 #include "parse/parser.hpp"
-#include "stackitem.hpp"
-#include "bytecodecompiler.hpp"
-#include "vm.hpp"
+#include "vm/stackitem.hpp"
+#include "compile/bytecodecompiler.hpp"
+#include "vm/vm.hpp"
 using namespace std;
 
 

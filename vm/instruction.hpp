@@ -1,0 +1,36 @@
+#ifndef instruction_hpp
+#define instruction_hpp
+#include "stackitem.hpp"
+
+enum VMInstruction {
+    defun, label, ldfield,
+    ldconst, ldglobal, ldlocal,
+    ldlocaladdr, ldglobaladdr, 
+    stglobal, stlocal, stfield,
+    call, entfun, retfun,
+    jump, brf, //juump, branch on false
+    binop, unop, //binary oper, unary oper
+    append, push,
+    print, halt
+};
+
+string instrStr[] = { ".def", "label", "ldfield", "ldconst", "ldglobal", "ldlocal", "ldlocaladdr", "ldglobaladdr",
+                     "stglobal", "stlocal", "stfield", "call", "entfun", "retfun", "jump", "brf", "binop", "unop", 
+                     "append", "push", "print", "halt"};
+
+enum VMOperators {
+    VM_ADD = 1, VM_SUB = 2, VM_MUL = 3, VM_DIV = 4, 
+    VM_MOD=5, VM_LT=7, VM_GT=8, VM_EQU=9, VM_NEQ=10,
+    VM_NEG = 11
+};
+
+struct Instruction {
+    VMInstruction op;
+    StackItem operand[3];
+    Instruction(VMInstruction instr, StackItem val, StackItem val2, StackItem val3) : op(instr) { operand[0] = val; operand[1] = val2; operand[2] = val3; } 
+    Instruction(VMInstruction instr, StackItem val, StackItem val2) : op(instr) { operand[0] = val; operand[1] = val2; }
+    Instruction(VMInstruction instr, StackItem val) : op(instr) { operand[0] = val; }
+    Instruction(VMInstruction instr = halt) : op(instr) { }
+};
+
+#endif

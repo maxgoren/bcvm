@@ -1,6 +1,6 @@
 #ifndef scopingst_hpp
 #define scopingst_hpp
-#include "stackitem.hpp"
+#include "../vm/stackitem.hpp"
 #include <map>
 #include <vector>
 #include <iostream>
@@ -56,7 +56,7 @@ class ScopingST {
             } else {
                 Scope*  ns = new Scope;
                 ns->enclosing = st;
-                st->symTable[name] = STItem(name, nextAddr(), L1, ns, depth(ns));
+                st->symTable.insert(make_pair(name,STItem(name, nextAddr(), L1, ns, depth(ns))));
                 st = ns;
             }
         }
@@ -70,7 +70,7 @@ class ScopingST {
             } 
         }
         void closeScope() {
-            if (st != nullptr) {
+            if (st->enclosing != nullptr) {
                 st = st->enclosing;
             }
         }
