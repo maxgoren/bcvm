@@ -1,0 +1,8 @@
+fn ok() {
+    let a := "outter";
+    fn showA() {
+        println a;
+    };
+    showA();
+};
+ok();

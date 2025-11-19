@@ -2,21 +2,24 @@
 #define stackitem_hpp
 #include <iostream>
 #include <cmath>
+#include <vector>
 using namespace std;
 
 enum VMInstruction {
-    defun, label,
+    defun, label, ldfield,
     ldconst, ldglobal, ldlocal,
     ldlocaladdr, ldglobaladdr, 
-    stglobal, stlocal, 
+    stglobal, stlocal, stfield,
     call, entfun, retfun,
     jump, brf, //juump, branch on false
     binop, unop, //binary oper, unary oper
+    append, push, first, rest,
     print, halt
 };
 
-string instrStr[] = { ".def", "label", "ldconst", "ldglobal", "ldlocal", "ldlocaladdr", "ldglobaladdr",
-                     "stglobal", "stlocal", "call", "entfun", "retfun", "jump", "brf", "binop", "unop", "print", "halt"};
+string instrStr[] = { ".def", "label", "ldfield", "ldconst", "ldglobal", "ldlocal", "ldlocaladdr", "ldglobaladdr",
+                     "stglobal", "stlocal", "stfield", "call", "entfun", "retfun", "jump", "brf", "binop", "unop", 
+                     "append", "push", "first", "rest", "print", "halt"};
 
 enum VMOperators {
     VM_ADD = 1, VM_SUB = 2, VM_MUL = 3, VM_DIV = 4, 
@@ -26,7 +29,7 @@ enum VMOperators {
 
 
 enum SIType {
-   NIL, INTEGER, NUMBER, STRING, BOOLEAN, FUNCTION, CLOSURE
+   NIL, INTEGER, NUMBER, STRING, BOOLEAN, FUNCTION, CLOSURE, LIST
 };
 
 struct Scope;
@@ -65,6 +68,7 @@ struct StackItem {
         string* strval;
         Function* func;
         Closure* closure;
+        vector<StackItem>* list;
     };
     string toString() {
         switch (type) {
@@ -80,7 +84,14 @@ struct StackItem {
             case BOOLEAN: return boolval ? "true":"false";
             case NIL: return "(nil)";
             case FUNCTION: return "(func)" + func->name;
-            case CLOSURE: return "(closure)" + closure->func->name;
+            case CLOSURE: return "(closure)" + closure->func->name + ", " + to_string(closure->func->start_ip);
+            case LIST: {
+                string str = "[";
+                for (auto m : *list) {
+                    str += m.toString() + " ";
+                }
+                return str + "]";
+            };
         }
         return "(nil)";
     }
@@ -90,6 +101,7 @@ struct StackItem {
     StackItem(bool balue) { boolval = balue; type = BOOLEAN; }
     StackItem(Function* f) { func = f; type = FUNCTION; }
     StackItem(Closure* c) { closure = c; type = CLOSURE; }
+    StackItem(vector<StackItem>* l) { list = l; type = LIST; }
     StackItem() { type = NIL; intval = -66; }
     StackItem(const StackItem& si) {
         type = si.type;
@@ -100,6 +112,7 @@ struct StackItem {
             case STRING: strval = si.strval; break;
             case FUNCTION: func = si.func; break;
             case CLOSURE: closure = si.closure; break;
+            case LIST: list = si.list; break;
         }
     }
     StackItem& operator=(const StackItem& si) {
@@ -113,6 +126,7 @@ struct StackItem {
             case STRING: strval = si.strval; break;
             case FUNCTION: func = si.func; break;
             case CLOSURE: closure = si.closure; break;
+            case LIST: list = si.list; break;
         }
         return *this;
     }

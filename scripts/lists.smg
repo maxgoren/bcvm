@@ -1,0 +1,9 @@
+let x := [ 1, 2, 3 ];
+println x;
+let i := 0;
+while (i < 3) {
+    println x[i];
+    i := i + 1;
+}
+x[1] := 66;
+println x;

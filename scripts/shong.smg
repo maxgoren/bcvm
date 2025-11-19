@@ -2,4 +2,4 @@ fn shongdui(let k) {
     return k+k;
 }
 let a := shongdui;
-println a;
+println a(3);

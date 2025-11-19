@@ -128,7 +128,7 @@ class FileStringBuffer : public CharBuffer {
             return lines[line_pos][str_pos];
         }
         bool done() {
-            return line_pos == lines.size() && str_pos == lines[line_pos].size();
+            return line_pos == lines.size()-1 && str_pos == lines[line_pos].size();
         }
         void readFile(string fname) {
             read(fname);

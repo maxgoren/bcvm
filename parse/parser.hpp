@@ -44,7 +44,7 @@ class Parser {
         astnode* argsList() {
             cout<<"args list"<<endl;
             astnode d, *t = &d;
-            while (!expect(TK_RPAREN)) {
+            while (!expect(TK_RPAREN) && !expect(TK_RB)) {
                 if (expect(TK_COMMA))
                     match(TK_COMMA);
                 t->next = expression();
@@ -88,14 +88,30 @@ class Parser {
                 match(TK_LCURLY);
                 n->right = stmt_list();
                 match(TK_RCURLY);
+            } else if (expect(TK_LB)) {
+                n = new astnode(LISTCON_EXPR, current());
+                match(TK_LB);
+                n->left = argsList();
+                match(TK_RB);
             }
-            if (expect(TK_LPAREN)) {
-                astnode* fc = new astnode(FUNC_EXPR, current());
-                fc->left = n;
-                match(TK_LPAREN);
-                fc->right = argsList();
-                match(TK_RPAREN);
-                n = fc;
+            if (n != nullptr && n->expr == ID_EXPR) {
+                while (expect(TK_LPAREN) || expect(TK_LB)) {
+                    if (expect(TK_LPAREN)) {
+                        astnode* fc = new astnode(FUNC_EXPR, current());
+                        fc->left = n;
+                        match(TK_LPAREN);
+                        fc->right = argsList();
+                        match(TK_RPAREN);
+                        n = fc;
+                    } else if (expect(TK_LB)) {
+                        astnode* ss = new astnode(SUBSCRIPT_EXPR, current());
+                        match(TK_LB);
+                        ss->left = n;
+                        ss->right = expression();
+                        match(TK_RB);
+                        n = ss;
+                    }
+                }
             }
             return n;
         }
@@ -114,7 +130,7 @@ class Parser {
         astnode* factor() {
             cout<<"factor"<<endl;
             astnode* n = unary();
-            while (expect(TK_MUL) || expect(TK_DIV)) {
+            while (expect(TK_MUL) || expect(TK_DIV) || expect(TK_MOD)) {
                 astnode* q = new astnode(BIN_EXPR, current());
                 match(lookahead());
                 q->left = n;
@@ -198,6 +214,16 @@ class Parser {
                         n->right = e;
                         match(TK_RCURLY);
                     }
+                } break;
+                case TK_WHILE: {
+                    n = new astnode(WHILE_STMT, current());
+                    match(TK_WHILE);
+                    match(TK_LPAREN);
+                    n->left = expression();
+                    match(TK_RPAREN);
+                    match(TK_LCURLY);
+                    n->right = stmt_list();
+                    match(TK_RCURLY);
                 } break;
                 case TK_FN: {
                     n = new astnode(DEF_STMT, current());

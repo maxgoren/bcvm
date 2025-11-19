@@ -49,18 +49,18 @@ class VM {
         void openScope(Instruction& inst) {
             if (verbLev > 1)
                 cout<<"Opening Scope with "<<inst.operand[1].intval<<" args and "<<inst.operand[2].intval<<"locals"<<endl;
-            Function* func = pop().closure->func;
-            callstk[fp++] = ActivationRecord(func->start_ip, inst.operand[1].intval);
+            callstk[fp++] = ActivationRecord(ip, inst.operand[1].intval);
             inparams = true;
         }
         void enterFunction(Instruction& inst) {
             //cout<<"return address: "<<ip<<endl;
             callstk[fp-1].returnAddress = ip;
-            ip = inst.operand[0].intval;
             //cout<<"jump to addres: "<<ip<<endl;
+            //Function* func = pop().closure->func;
             for (int i = callstk[fp-1].num_args; i > 0; i--) {
                 callstk[fp-1].locals[i] = pop();
             }
+            ip =  inst.operand[0].intval; //func->start_ip;
             inparams = false;
         }
         void closeScope() {
@@ -110,33 +110,28 @@ class VM {
             switch (inst.operand[0].intval) {
                 case VM_ADD:  {
                     StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(lhs.add(rhs)));
+                    top().add(rhs);
                 } break;
                 case VM_SUB:  {
                     StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(lhs.sub(rhs)));
+                    top().sub(rhs);
                 } break;
                 case VM_MUL:  {
                     StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(lhs.mul(rhs)));
+                    top().mul(rhs);
                 } break;
                 case VM_DIV:  {
                     StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(lhs.div(rhs)));
+                    top().div(rhs);
                 } break;
                 case VM_MOD:  {
                     StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(lhs.mod(rhs)));
+                    top().mod(rhs);
                 } break;
                 case VM_LT:   {
                     StackItem rhs = pop();
                     StackItem lhs = pop();
-                    push(lhs.compareTo(rhs));
+                    push(StackItem(lhs.compareTo(rhs)));
                 } break;
                 case VM_GT:   {
                     StackItem rhs = pop();
@@ -161,10 +156,21 @@ class VM {
             push(inst.operand[0]);
         }
         void loadGlobal(Instruction& inst) {
+            if (verbLev > 1)
+                cout<<"Load "<<opstk[(MAX_OP_STACK-1) - inst.operand[0].intval].toString()<<" from "<<((MAX_OP_STACK-1) - inst.operand[0].intval)<<endl;
             push(opstk[(MAX_OP_STACK-1) - inst.operand[0].intval]);
         }
         void loadLocal(Instruction& inst) {
             push(callstk[fp-(inparams ? 2:1)].locals[inst.operand[0].intval]);
+        }
+        void appendList() {
+            StackItem item = pop();
+            if (top().type == LIST)
+                top().list->push_back(item);
+        }
+        void firstList() {
+            if (top().type == LIST) 
+                push(top().list->front()); 
         }
         void printTopOfStack() {
             cout<<pop().toString()<<endl;
@@ -177,6 +183,9 @@ class VM {
         }
         void execute(Instruction& inst) {
             switch (inst.op) {
+                case append:   {  appendList();   } break;
+                case first:    {  firstList();  } break;
+                case rest:     {    } break;
                 case call:     { openScope(inst); } break;
                 case entfun:   { enterFunction(inst); } break;
                 case retfun:   { closeScope(); } break;
@@ -193,6 +202,10 @@ class VM {
                 case ldlocal:  { loadLocal(inst); } break;
                 case ldlocaladdr:  { push(inst.operand[0].intval); } break;
                 case ldglobaladdr: { push((MAX_OP_STACK-1) - inst.operand[0].intval); } break;
+                case ldfield:      { 
+                    StackItem t = pop();
+                    push(top().list->at(t.numval));
+                } break;
                 case label: { /* nop() */ } break;
                 default:
                     break;

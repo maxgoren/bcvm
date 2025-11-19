@@ -1,109 +1,8 @@
 #ifndef bytecodecompiler_hpp
 #define bytecodecompiler_hpp
 #include "parse/ast.hpp"
-#include "stackitem.hpp"
-#include <map>
-#include <vector>
-#include <iostream>
+#include "scopingst.hpp"
 using namespace std;
-
-struct Scope;
-
-struct STItem {
-    string name;
-    int type;
-    int addr;
-    int depth;
-    Function* func;
-    STItem(string n, int adr, int sip, Scope* s, int d) : type(2), name(n), depth(d), addr(adr), func(new Function(n, sip, s)) { }
-    STItem(string n, int adr, int d) : type(1), name(n), addr(adr), depth(d), func(nullptr) { }
-    STItem() : type(0), func(nullptr) { }
-};
-
-struct Scope {
-    Scope* enclosing;
-    map<string, STItem> symTable;
-};
-
-
-class ScopingST {
-    private:
-        Scope* st;
-        int nextAddr() {
-            return st->symTable.size()+1; //locals[0] is resrved for return value.
-        }
-        int depth(Scope* s) {
-            if (s->enclosing == nullptr)
-                return -1;
-            auto x = s;
-            int d = 0;
-            while (x != nullptr) {
-                d++;
-                x = x->enclosing;
-            }
-            return d;
-        }
-    public:
-        ScopingST() {
-            st = new Scope();
-            st->enclosing = nullptr;
-        }
-        void openFunctionScope(string name, int L1) {
-            if (st->symTable.find(name) != st->symTable.end()) {
-                Scope* ns = st->symTable[name].func->scope;
-                ns->enclosing = st;
-                st->symTable[name].func->start_ip = L1;
-                st = ns;
-            } else {
-                Scope*  ns = new Scope;
-                ns->enclosing = st;
-                st->symTable[name] = STItem(name, nextAddr(), L1, ns, depth(ns));
-                st = ns;
-            }
-        }
-        void copyScope(string dest, string src) {
-            if (st->symTable.find(src) != st->symTable.end()) {
-                STItem item = st->symTable[src];
-                if (item.type == 2) {
-                    Function* ns = item.func;
-                    st->symTable[dest] = STItem(dest, nextAddr(), ns->start_ip, ns->scope, depth(ns->scope));
-                }
-            } 
-        }
-        void closeScope() {
-            if (st != nullptr) {
-                st = st->enclosing;
-            }
-        }
-        void insert(string name) {
-            st->symTable[name] = STItem(name, nextAddr(), depth(st));
-        }
-        STItem lookup(string name) {
-            Scope* x = st;
-            while (x != nullptr) {
-                if (x->symTable.find(name) != x->symTable.end())
-                    return x->symTable[name];
-                x = x->enclosing;
-            }
-            return STItem("not found", -1, -1);
-        }
-        int depth() {
-            return depth(st);
-        }
-        void printScope(Scope* s, int d) {
-            auto x = s;
-            for (auto m : x->symTable) {
-                for (int i = 0; i < d; i++) cout<<"  ";
-                cout<<m.first<<": "<<m.second.addr<<", "<<m.second.depth<<endl;
-                if (m.second.type == 2) {
-                    printScope(m.second.func->scope,d + 1);
-                }
-            }
-        }
-        void print() {
-            printScope(st, 1);
-        }
-};
 
 class  ByteCodeCompiler {
     private:
@@ -143,20 +42,24 @@ class  ByteCodeCompiler {
             cpos = highCI;
         }
         void emitBinaryOperator(astnode* n) {
-            genCode(n->left,  n->token.getSymbol() == TK_ASSIGN);
-            genCode(n->right, false);
-            switch (n->token.getSymbol()) {
-                case TK_ADD: emit(Instruction(binop, VM_ADD)); break;
-                case TK_SUB: emit(Instruction(binop, VM_SUB)); break;
-                case TK_MUL: emit(Instruction(binop, VM_MUL)); break;
-                case TK_DIV: emit(Instruction(binop, VM_DIV)); break;
-                case TK_LT:  emit(Instruction(binop, VM_LT)); break;
-                case TK_GT:  emit(Instruction(binop, VM_GT)); break;
-                case TK_EQU: emit(Instruction(binop, VM_EQU)); break;
-                case TK_NEQ: emit(Instruction(binop, VM_NEQ)); break;
-                case TK_ASSIGN: {
-                    emit(Instruction(stglobal, scopeLevel())); break;
-                } break;
+            if (n->token.getSymbol() == TK_ASSIGN) {
+                genCode(n->right, false);
+                genCode(n->left, true);
+                emit(Instruction(symTable.depth() == -1 ? stglobal:stlocal, symTable.depth()));
+            } else {
+                genCode(n->left,  false);
+                genCode(n->right, false);
+                switch (n->token.getSymbol()) {
+                    case TK_ADD: emit(Instruction(binop, VM_ADD)); break;
+                    case TK_SUB: emit(Instruction(binop, VM_SUB)); break;
+                    case TK_MUL: emit(Instruction(binop, VM_MUL)); break;
+                    case TK_DIV: emit(Instruction(binop, VM_DIV)); break;
+                    case TK_MOD: emit(Instruction(binop, VM_MOD)); break;
+                    case TK_LT:  emit(Instruction(binop, VM_LT)); break;
+                    case TK_GT:  emit(Instruction(binop, VM_GT)); break;
+                    case TK_EQU: emit(Instruction(binop, VM_EQU)); break;
+                    case TK_NEQ: emit(Instruction(binop, VM_NEQ)); break;
+                }
             }
         }
         void emitUnaryOperator(astnode* n) {
@@ -179,6 +82,11 @@ class  ByteCodeCompiler {
                 }
             }
         }
+        void emitSubscript(astnode* n, bool isLvalue) {
+            genCode(n->left, false);
+            genCode(n->right, false);
+            emit(Instruction(isLvalue ? stfield:ldfield));
+        }
         void emitReturn(astnode* n) {
             genCode(n->left, false);
             emit(Instruction(retfun));
@@ -193,6 +101,7 @@ class  ByteCodeCompiler {
                 case TK_STRING: emit(Instruction(ldconst, n->token.getString())); break;
                 case TK_TRUE:   emit(Instruction(ldconst, true)); break;
                 case TK_FALSE:  emit(Instruction(ldconst, false)); break;
+                case TK_NIL:    emit(Instruction(ldconst));
                 default: break;
             } 
         }
@@ -228,10 +137,25 @@ class  ByteCodeCompiler {
             int argsCount = 0;
             for (auto x = n->right; x != nullptr; x = x->next)
                 argsCount++;
-            emit(Instruction(ldconst, new Closure(new Function(fn_info.name, fn_info.func->start_ip, fn_info.func->scope))));    
+            //emit(Instruction(ldconst, new Closure(new Function(fn_info.name, fn_info.func->start_ip, fn_info.func->scope))));    
+            //genExpression(n->left, false);
             emit(Instruction(call, fn_info.func->start_ip, argsCount, fn_info.addr));
             genCode(n->right, false);
             emit(Instruction(entfun, fn_info.func->start_ip));
+        }
+        void emitListConstructor(astnode* n) {
+            emit(Instruction(ldconst, new vector<StackItem>()));
+            for (astnode* it = n->left; it != nullptr; it = it->next) {
+                genExpression(it, false);
+                emit(Instruction(append));
+            }
+        }
+        void emitBlock(astnode* n) {
+            int L1 = skipEmit(0);
+            emit(Instruction(call, L1+1));
+            emit(Instruction(entfun, L1+2));
+            genCode(n->left, false);
+            emit(Instruction(retfun));
         }
         void emitFuncDef(astnode* n) {
             int numArgs = 0;
@@ -259,6 +183,18 @@ class  ByteCodeCompiler {
                 emit(Instruction(ldlocaladdr, fn_info.addr, fn_info.depth));
                 emit(Instruction(stlocal, fn_info.addr));
             }            
+        }
+        void emitWhile(astnode* n) {
+            int P1 = skipEmit(0);
+            genCode(n->left, false);
+            int L1 = skipEmit(0);
+            skipEmit(1);
+            genCode(n->right, false);
+            emit(Instruction(jump, P1));
+            int L2 = skipEmit(0);
+            skipTo(L1);
+            emit(Instruction(brf, L2));
+            restore();
         }
         void defineIfStmt(astnode* n) {
             if (n->right->token.getSymbol() == TK_ELSE) {
@@ -297,10 +233,12 @@ class  ByteCodeCompiler {
         void genStatement(astnode* n, bool needLvalue) {
             switch (n->stmt) {
                 case DEF_STMT:    { emitFuncDef(n); } break;
+                case BLOCK_STMT:  { emitBlock(n);   } break;
                 case IF_STMT:     { defineIfStmt(n);   } break;
                 case LET_STMT:    { genCode(n->left, false);  } break;
                 case PRINT_STMT:  { emitPrint(n);      } break;
                 case RETURN_STMT: { emitReturn(n);     } break;
+                case WHILE_STMT:  { emitWhile(n);      } break;
                 case EXPR_STMT: { 
                     genCode(n->left, false);
                 }break;
@@ -315,6 +253,8 @@ class  ByteCodeCompiler {
                 case UOP_EXPR:    { emitUnaryOperator(n);  } break;
                 case LAMBDA_EXPR: { emitLambda(n);        } break;
                 case FUNC_EXPR:   { emitFunctionCall(n);   } break;
+                case LISTCON_EXPR: { emitListConstructor(n); } break;
+                case SUBSCRIPT_EXPR: { emitSubscript(n, needLvalue); } break;
                 default:
                     break;
             }
@@ -342,6 +282,11 @@ class  ByteCodeCompiler {
                             symTable.closeScope();
                             return;
                         } break;
+                        case BLOCK_STMT: {
+                            symTable.openFunctionScope(t->token.getString(), -1);
+                            buildSymbolTable(t->left);
+                            symTable.closeScope();
+                        }
                     }
                 } break;
                 case EXPRNODE: {
