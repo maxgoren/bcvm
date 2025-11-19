@@ -4,8 +4,8 @@
 #include "bytecodecompiler.hpp"
 using namespace std;
 
-static const int MAX_OP_STACK = 255;
-static const int MAX_CALL_STACK = 255;
+static const int MAX_OP_STACK = 1255;
+static const int MAX_CALL_STACK = 1255;
 
 
 
@@ -25,6 +25,7 @@ class VM {
     private:
         bool running = false;
         int verbLev;
+        Instruction haltSentinel;
         vector<Instruction> codePage;
         int ip;
         int sp;
@@ -53,14 +54,17 @@ class VM {
             inparams = true;
         }
         void enterFunction(Instruction& inst) {
-            //cout<<"return address: "<<ip<<endl;
             callstk[fp-1].returnAddress = ip;
             //cout<<"jump to addres: "<<ip<<endl;
-            //Function* func = pop().closure->func;
+            StackItem func;
+            //cout<<"move args from stack to AR: ";
             for (int i = callstk[fp-1].num_args; i > 0; i--) {
                 callstk[fp-1].locals[i] = pop();
             }
-            ip =  inst.operand[0].intval; //func->start_ip;
+            //cout<<"popp function"<<endl;
+            if (sp > 0) func = pop();
+            if (func.type != CLOSURE) ip =  inst.operand[0].intval;
+            else ip = func.closure->func->start_ip;
             inparams = false;
         }
         void closeScope() {
@@ -84,7 +88,7 @@ class VM {
                 cout<<"Stored local at "<<t.intval<<" in scope "<<depth<<endl;
         }
         Instruction& fetch() {
-            return codePage[ip++];
+            return ip < codePage.size() && ip > -1 ?codePage[ip++]:haltSentinel;
         }
         void printInstruction(Instruction& inst) {
             cout<<ip<<": [0x0"<<inst.op<<"("<<instrStr[inst.op]<<"), "<<inst.operand[0].toString()<<","<<inst.operand[1].toString()<<"]  \n";
@@ -236,6 +240,7 @@ class VM {
             ip = 0;
             sp = 0;
             fp = 0;
+            haltSentinel = Instruction(halt);
         }
         void run(vector<Instruction>& cp, int verbosity) {
             init(cp, verbosity);

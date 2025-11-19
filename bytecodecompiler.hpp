@@ -138,10 +138,18 @@ class  ByteCodeCompiler {
             for (auto x = n->right; x != nullptr; x = x->next)
                 argsCount++;
             //emit(Instruction(ldconst, new Closure(new Function(fn_info.name, fn_info.func->start_ip, fn_info.func->scope))));    
-            //genExpression(n->left, false);
+            genExpression(n->left, false);
+            if (fn_info.type == 2) {
             emit(Instruction(call, fn_info.func->start_ip, argsCount, fn_info.addr));
+            } else {
+            emit(Instruction(call, 0, argsCount, 0));
+            }
             genCode(n->right, false);
-            emit(Instruction(entfun, fn_info.func->start_ip));
+            if (fn_info.type == 2) {
+                emit(Instruction(entfun, fn_info.func->start_ip));
+            } else {
+                emit(Instruction(entfun, 0));
+            }
         }
         void emitListConstructor(astnode* n) {
             emit(Instruction(ldconst, new vector<StackItem>()));

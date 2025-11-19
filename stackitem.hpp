@@ -264,7 +264,7 @@ struct Instruction {
     Instruction(VMInstruction instr, StackItem val, StackItem val2, StackItem val3) : op(instr) { operand[0] = val; operand[1] = val2; operand[2] = val3; } 
     Instruction(VMInstruction instr, StackItem val, StackItem val2) : op(instr) { operand[0] = val; operand[1] = val2; }
     Instruction(VMInstruction instr, StackItem val) : op(instr) { operand[0] = val; }
-    Instruction(VMInstruction instr) : op(instr) { }
+    Instruction(VMInstruction instr = halt) : op(instr) { }
 };
 
 #endif
