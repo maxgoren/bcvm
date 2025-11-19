@@ -208,7 +208,14 @@ class VM {
                 case ldglobaladdr: { push((MAX_OP_STACK-1) - inst.operand[0].intval); } break;
                 case ldfield:      { 
                     StackItem t = pop();
-                    push(top().list->at(t.numval));
+                    push(pop().list->at(t.numval));
+                } break;
+                case stfield: {
+                    StackItem index = pop();
+                    StackItem list = pop();
+                    list.list->at(index.numval) = pop();
+                    push(list);
+                    push(index);
                 } break;
                 case label: { /* nop() */ } break;
                 default:
