@@ -5,6 +5,10 @@
 #include "scopingst.hpp"
 using namespace std;
 
+
+//{ fn ok() { println "hi"; }; ok(); }
+
+
 class  ByteCodeCompiler {
     private:
         vector<Instruction> code;
@@ -22,7 +26,7 @@ class  ByteCodeCompiler {
         int scopeLevel() {
             return symTable.depth();
         }
-        STItem lookup(string varname) {
+        SymbolTableEntry& lookup(string varname) {
             if (symTable.lookup(varname).addr == -1)
                 symTable.insert(varname);
             return symTable.lookup(varname);
@@ -68,7 +72,7 @@ class  ByteCodeCompiler {
             emit(Instruction(unop, VM_NEG));
         }
         void emitLoad(astnode* n, bool needLvalue) {
-            STItem item = lookup(n->token.getString());
+            SymbolTableEntry item = lookup(n->token.getString());
             if (needLvalue) {
                 if (symTable.depth() == -1) {
                     emit(Instruction(ldglobaladdr, item.addr, item.depth));
@@ -83,10 +87,33 @@ class  ByteCodeCompiler {
                 }
             }
         }
-        void emitSubscript(astnode* n, bool isLvalue) {
+        void emitListAccess(astnode* n, bool isLvalue) {
             genCode(n->left, false);
             genCode(n->right, false);
             emit(Instruction(isLvalue ? stfield:ldfield));
+        }
+        void emitFieldAccess(astnode* n, bool isLvalue) {
+            genCode(n->left, false);
+            genCode(n->right, false);
+        }
+        void emitSubscript(astnode* n, bool isLvalue) {
+            if (n->token.getSymbol() == TK_PERIOD) {
+                emitFieldAccess(n, isLvalue);
+            } else {
+                emitListAccess(n, isLvalue);
+            }
+        }
+        void emitListOperation(astnode* n) {
+            switch (n->token.getSymbol()) {
+                case TK_APPEND: {
+                    genExpression(n->left, false);
+                    emit(Instruction(list_append));
+                } break;
+                case TK_PUSH: {
+                    genExpression(n->left, false);
+                    emit(Instruction(list_push));
+                } break;
+            }
         }
         void emitReturn(astnode* n) {
             genCode(n->left, false);
@@ -123,7 +150,7 @@ class  ByteCodeCompiler {
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
-            STItem fn_info = symTable.lookup(name);
+            SymbolTableEntry fn_info = symTable.lookup(name);
             emit(Instruction(ldconst, new Closure(fn_info.func)));
             if (symTable.depth() == -1) {
                 emit(Instruction(ldglobaladdr, fn_info.addr, fn_info.depth));
@@ -134,16 +161,15 @@ class  ByteCodeCompiler {
             }          
         }
         void emitFunctionCall(astnode* n) {
-            STItem fn_info = functionInfo(n->left->token.getString());
+            SymbolTableEntry fn_info = functionInfo(n->left->token.getString());
             int argsCount = 0;
             for (auto x = n->right; x != nullptr; x = x->next)
                 argsCount++;
-            //emit(Instruction(ldconst, new Closure(new Function(fn_info.name, fn_info.func->start_ip, fn_info.func->scope))));    
             genExpression(n->left, false);
             if (fn_info.type == 2) {
-            emit(Instruction(call, fn_info.func->start_ip, argsCount, fn_info.addr));
+                emit(Instruction(call, fn_info.func->start_ip, argsCount, fn_info.addr));
             } else {
-            emit(Instruction(call, 0, argsCount, 0));
+                emit(Instruction(call, 0, argsCount, 0));
             }
             genCode(n->right, false);
             if (fn_info.type == 2) {
@@ -153,18 +179,17 @@ class  ByteCodeCompiler {
             }
         }
         void emitListConstructor(astnode* n) {
-            emit(Instruction(ldconst, new vector<StackItem>()));
+            emit(Instruction(ldconst, new deque<StackItem>()));
             for (astnode* it = n->left; it != nullptr; it = it->next) {
                 genExpression(it, false);
-                emit(Instruction(append));
+                emit(Instruction(list_append));
             }
         }
         void emitBlock(astnode* n) {
             int L1 = skipEmit(0);
-            emit(Instruction(call, L1+1));
-            emit(Instruction(entfun, L1+2));
+            emit(Instruction(entblk, L1+2));
             genCode(n->left, false);
-            emit(Instruction(retfun));
+            emit(Instruction(retblk));
         }
         void emitFuncDef(astnode* n) {
             int numArgs = 0;
@@ -183,7 +208,7 @@ class  ByteCodeCompiler {
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
-            STItem fn_info = symTable.lookup(name);
+            SymbolTableEntry fn_info = symTable.lookup(name);
             emit(Instruction(ldconst, new Closure(fn_info.func)));
             if (symTable.depth() == -1) {
                 emit(Instruction(ldglobaladdr, fn_info.addr, fn_info.depth));
@@ -232,11 +257,8 @@ class  ByteCodeCompiler {
                 restore();
             }
         }
-        STItem functionInfo(string name) {
-            STItem item = symTable.lookup(name);
-            /*if (item.type == 2 && item.func != nullptr) {
-                cout<<item.func->name<<": "<<item.addr<<", "<<item.func->start_ip<<endl;
-            }*/
+        SymbolTableEntry functionInfo(string name) {
+            SymbolTableEntry item = symTable.lookup(name);
             return item;
         }
         void genStatement(astnode* n, bool needLvalue) {
@@ -248,9 +270,7 @@ class  ByteCodeCompiler {
                 case PRINT_STMT:  { emitPrint(n);      } break;
                 case RETURN_STMT: { emitReturn(n);     } break;
                 case WHILE_STMT:  { emitWhile(n);      } break;
-                case EXPR_STMT: { 
-                    genCode(n->left, false);
-                }break;
+                case EXPR_STMT: { genCode(n->left, false); } break;
                 default: break;
             };
         }
@@ -264,6 +284,7 @@ class  ByteCodeCompiler {
                 case FUNC_EXPR:   { emitFunctionCall(n);   } break;
                 case LISTCON_EXPR: { emitListConstructor(n); } break;
                 case SUBSCRIPT_EXPR: { emitSubscript(n, needLvalue); } break;
+                case LIST_EXPR: { emitListOperation(n); } break;
                 default:
                     break;
             }
@@ -278,35 +299,65 @@ class  ByteCodeCompiler {
                 genCode(n->next, false);
             }
         }
-        void buildSymbolTable(astnode* t) {
-            if (t == nullptr)
-                return;
-            switch (t->kind) {
-                case STMTNODE: {
-                    switch (t->stmt) {
-                        case DEF_STMT: {
-                            symTable.openFunctionScope(t->token.getString(), -1);
-                            buildSymbolTable(t->left);
-                            buildSymbolTable(t->right);
-                            symTable.closeScope();
-                            return;
-                        } break;
-                        case BLOCK_STMT: {
-                            symTable.openFunctionScope(t->token.getString(), -1);
-                            buildSymbolTable(t->left);
-                            symTable.closeScope();
-                        }
-                    }
+        string nameBlock() {
+            static int bnum = 0;
+            return "Block" + to_string(bnum++);
+        }
+        void buildStatementST(astnode* t) {
+            switch (t->stmt) {
+                case DEF_STMT: {
+                    symTable.openFunctionScope(t->token.getString(), -1);
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
+                    symTable.closeScope();
+                    return;
+                }  break;
+                case BLOCK_STMT: {
+                    t->token.setString(nameBlock());
+                    symTable.openFunctionScope(t->token.getString(), -1);
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->next);
+                    symTable.closeScope();
+                    return;
                 } break;
-                case EXPRNODE: {
-                    switch (t->expr) {
-                        case ID_EXPR: lookup(t->token.getString()); break;
-                        case BIN_EXPR: break;
+                case LET_STMT: {
+                    astnode* x = t;
+                    while (x != nullptr) {
+                        if (t->expr == ID_EXPR)
+                            break;
+                        x = x->left;
                     }
+                    if (x != nullptr && symTable.existsInScope(x->token.getString()))
+                        symTable.insert(x->token.getString());
+                    buildSymbolTable(t->left);
                 } break;
+                default: 
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
+                break;
+            }
+        } 
+        void buildExpressionST(astnode* t) {
+            switch (t->expr) {
+                case ID_EXPR: 
+                    lookup(t->token.getString()); break;
+                default: break;
             }
             buildSymbolTable(t->left);
             buildSymbolTable(t->right);
+        }
+        void buildSymbolTable(astnode* t) {
+            if (t != nullptr) {
+                switch (t->kind) {
+                    case STMTNODE: {
+                        buildStatementST(t);
+                    } break;
+                    case EXPRNODE: {
+                        buildExpressionST(t);
+                    } break;
+                }
+                buildSymbolTable(t->next);
+            }
         }
     public:
         ByteCodeCompiler() {
@@ -316,10 +367,10 @@ class  ByteCodeCompiler {
         }
 
         vector<Instruction> compile(astnode* n) {
+            cout<<"Build Symbol Table: "<<endl;
             buildSymbolTable(n);
-            preorder(n, 1);
+            cout<<"Compiling..."<<endl;
             genCode(n, false);
-            symTable.print();
             cout<<"Compiled Bytecode: "<<endl;
             int addr = 0;
             for (auto m : code) {
@@ -328,6 +379,8 @@ class  ByteCodeCompiler {
                     break;
                 addr++;
             }
+            cout<<"Symbol table: ";
+            symTable.print();
             cout<<"----------------"<<endl;
             return code;
         }

@@ -93,9 +93,21 @@ class Parser {
                 match(TK_LB);
                 n->left = argsList();
                 match(TK_RB);
+            } else if (expect(TK_SIZE)) {
+                n = new astnode(LIST_EXPR, current());
+                match(TK_SIZE);
+                n->left = expression();
+            } else if (expect(TK_APPEND)) {
+                n = new astnode(LIST_EXPR, current());
+                match(TK_APPEND);               
+                n->left = expression();
+            } else if (expect(TK_PUSH)) {
+                n = new astnode(LIST_EXPR, current());
+                match(TK_PUSH);
+                n->left = expression();
             }
             if (n != nullptr && n->expr == ID_EXPR) {
-                while (expect(TK_LPAREN) || expect(TK_LB)) {
+                while (expect(TK_LPAREN) || expect(TK_LB) || expect(TK_PERIOD)) {
                     if (expect(TK_LPAREN)) {
                         astnode* fc = new astnode(FUNC_EXPR, current());
                         fc->left = n;
@@ -110,6 +122,12 @@ class Parser {
                         ss->right = expression();
                         match(TK_RB);
                         n = ss;
+                    } else if (expect(TK_PERIOD)) {
+                        astnode* ma = new astnode(SUBSCRIPT_EXPR, current());
+                        match(TK_PERIOD);
+                        ma->left = n;
+                        ma->right = expression();
+                        n = ma;
                     }
                 }
             }
@@ -231,10 +249,17 @@ class Parser {
                     n->token = current();
                     match(TK_ID);
                     match(TK_LPAREN);
-                    n->left = paramList();
+                    if (!expect(TK_RPAREN))
+                        n->left = paramList();
                     match(TK_RPAREN);
                     match(TK_LCURLY);
                     n->right = stmt_list();
+                    match(TK_RCURLY);
+                } break;
+                case TK_LCURLY: {
+                    n = new astnode(BLOCK_STMT, current());
+                    match(TK_LCURLY);
+                    n->left = stmt_list();
                     match(TK_RCURLY);
                 } break;
                 case TK_LET: {
@@ -252,7 +277,7 @@ class Parser {
                     n->left = expression();
             }
             if (expect(TK_SEMI))
-                    match(TK_SEMI);
+                match(TK_SEMI);
             return n;
         }
         astnode* stmt_list() {
@@ -276,7 +301,11 @@ class Parser {
         }
         astnode* parse(vector<Token> tokens) {
             init(tokens);
-            return stmt_list();
+            astnode* p = stmt_list();
+            cout<<"Parse complete."<<endl;
+            set<astnode*> seen;
+            preorder(p, 1, seen);
+            return p;
         }
 }; 
 

@@ -1,0 +1,7 @@
+fn addTwo(let i, let j) {
+    return i+j;
+}
+fn apply(let f, let x, let y) {
+    return f(x, y);
+}
+println apply(addTwo, 3, 6);

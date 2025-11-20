@@ -8,28 +8,94 @@ using namespace std;
 
 struct Scope;
 
-struct STItem {
+struct SymbolTableEntry {
     string name;
     int type;
     int addr;
     int depth;
     Function* func;
-    STItem(string n, int adr, int sip, Scope* s, int d) : type(2), name(n), depth(d), addr(adr), func(new Function(n, sip, s)) { }
-    STItem(string n, int adr, int d) : type(1), name(n), addr(adr), depth(d), func(nullptr) { }
-    STItem() : type(0), func(nullptr) { }
+    SymbolTableEntry(string n, int adr, Function* f, int d) : type(2), addr(adr), name(n), depth(d), func(f) { }
+    SymbolTableEntry(string n, int adr, int sip, Scope* s, int d) : type(2), name(n), depth(d), addr(adr) { func = makeFunction(name, sip, s); }
+    SymbolTableEntry(string n, int adr, int d) : type(1), name(n), addr(adr), depth(d), func(nullptr) { }
+    SymbolTableEntry() : type(0), addr(-1), func(nullptr) { }
+    SymbolTableEntry(const SymbolTableEntry& e) {
+        name = e.name;
+        type = e.type;
+        addr = e.addr;
+        depth = e.depth;
+        func = e.func;
+    }
+    SymbolTableEntry& operator=(const SymbolTableEntry& e) {
+        if (this != &e) {
+            name = e.name;
+            type = e.type;
+            addr = e.addr;
+            depth = e.depth;
+            func = e.func;
+        }
+        return *this;
+    }
+    bool operator==(const SymbolTableEntry& st) const {
+        return name == st.name && type == st.type && addr == st.addr;
+    }
+    bool operator!=(const SymbolTableEntry& st) const {
+        return !(*this==st);
+    }
+};
+
+
+struct BlockScope {
+    SymbolTableEntry data[255];
+    int n = 0;
+    BlockScope() {
+        n = 0;
+    }
+    int size() {
+        return n;
+    }
+    void insert(string name, SymbolTableEntry st) {
+        cout<<st.name<<" added with address "<<st.addr<<" in positon "<<n<<endl;
+        data[n++] = st;
+    }
+    SymbolTableEntry& find(string name) {
+        int i = 0;
+        while (i < n) {
+            if (data[i].name == name) {
+                return data[i];
+            }
+            i++;
+        }
+        return data[i];
+    }
+    SymbolTableEntry& end() {
+        return data[n];
+    }
+    SymbolTableEntry& operator[](string name) {
+        for (int i = 0; i < n; i++) {
+            if (data[i].name == name) {
+                return data[i];
+            }
+        }
+        data[n] = SymbolTableEntry(name, n, -1);
+        n++;
+        return data[n-1];
+    }
 };
 
 struct Scope {
     Scope* enclosing;
-    map<string, STItem> symTable;
+    BlockScope symTable;
 };
 
-
+//{ fn ok() { println "hi"; } ok(); }
 class ScopingST {
     private:
         Scope* st;
+        SymbolTableEntry nfSentinel;
         int nextAddr() {
-            return st->symTable.size()+1; //locals[0] is resrved for return value.
+            int na = st->symTable.size()+1;
+            cout<<"Generated: "<<na<<" as next address."<<endl;
+            return na; //locals[0] is resrved for return value.
         }
         int depth(Scope* s) {
             if (s->enclosing == nullptr)
@@ -46,60 +112,65 @@ class ScopingST {
         ScopingST() {
             st = new Scope();
             st->enclosing = nullptr;
+            nfSentinel = SymbolTableEntry("not found", -1, -1);
         }
         void openFunctionScope(string name, int L1) {
+            cout<<"Open scope "<<name<<endl;
             if (st->symTable.find(name) != st->symTable.end()) {
+                cout<<"Reopening existing for "<<st->symTable[name].addr<<endl;
                 Scope* ns = st->symTable[name].func->scope;
-                ns->enclosing = st;
                 st->symTable[name].func->start_ip = L1;
                 st = ns;
             } else {
                 Scope*  ns = new Scope;
                 ns->enclosing = st;
-                st->symTable.insert(make_pair(name,STItem(name, nextAddr(), L1, ns, depth(ns))));
+                Function* f = makeFunction(name, L1, ns);
+                int addr = nextAddr();
+                cout<<"Adding to enclosing at "<<addr<<endl;;
+                st->symTable.insert(name, SymbolTableEntry(name, addr, f, depth(ns)));
                 st = ns;
             }
         }
-        void copyScope(string dest, string src) {
-            if (st->symTable.find(src) != st->symTable.end()) {
-                STItem item = st->symTable[src];
-                if (item.type == 2) {
-                    Function* ns = item.func;
-                    st->symTable[dest] = STItem(dest, nextAddr(), ns->start_ip, ns->scope, depth(ns->scope));
-                }
-            } 
-        }
         void closeScope() {
             if (st->enclosing != nullptr) {
+                cout<<"Closing scope"<<endl;
                 st = st->enclosing;
             }
         }
         void insert(string name) {
-            st->symTable[name] = STItem(name, nextAddr(), depth(st));
+            st->symTable[name] = SymbolTableEntry(name, nextAddr(), depth(st));
         }
-        STItem lookup(string name) {
+        bool existsInScope(string name) {
+            if (st->symTable.find(name) != st->symTable.end())
+                return true;
+            return false;
+        }
+        SymbolTableEntry& lookup(string name) {
             Scope* x = st;
             while (x != nullptr) {
                 if (x->symTable.find(name) != x->symTable.end())
                     return x->symTable[name];
                 x = x->enclosing;
             }
-            return STItem("not found", -1, -1);
+            cout<<"lookup "<<name<<" failed"<<endl;
+            return nfSentinel;
         }
         int depth() {
             return depth(st);
         }
         void printScope(Scope* s, int d) {
             auto x = s;
-            for (auto m : x->symTable) {
+            for (int i = 0; i < x->symTable.size(); i++) {
+                auto m = x->symTable.data[i];
                 for (int i = 0; i < d; i++) cout<<"  ";
-                cout<<m.first<<": "<<m.second.addr<<", "<<m.second.depth<<endl;
-                if (m.second.type == 2) {
-                    printScope(m.second.func->scope,d + 1);
+                cout<<m.name<<": "<<m.addr<<", "<<m.depth<<endl;
+                if (m.type == 2) {
+                    printScope(m.func->scope,d + 1);
                 }
             }
         }
         void print() {
+            cout<<"Symbol table: \n";
             printScope(st, 1);
         }
 };

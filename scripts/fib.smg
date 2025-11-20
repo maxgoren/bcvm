@@ -5,7 +5,7 @@ fn fib(let k) {
 	return fib(k-1)+fib(k-2);
 }
 fn listFibs(let k) {
-	if (k < 7) {
+	if (k < 10) {
 		println fib(k);
 		listFibs(k+1);
 		println k;
@@ -14,6 +14,5 @@ fn listFibs(let k) {
 	println k;
 	return k;
 }
-listFibs(4);
 let fc := listFibs;
-fc(6);
+fc(4);

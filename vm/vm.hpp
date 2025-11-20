@@ -50,11 +50,17 @@ class VM {
         void openScope(Instruction& inst) {
             if (verbLev > 1)
                 cout<<"Opening Scope with "<<inst.operand[1].intval<<" args and "<<inst.operand[2].intval<<"locals"<<endl;
-            callstk[fp++] = ActivationRecord(ip, inst.operand[1].intval);
+            openBlock(inst);
             inparams = true;
         }
         void closeScope() {
             ip = callstk[fp-1].returnAddress;
+            popScope();
+        }
+        void openBlock(Instruction& inst) {
+            callstk[fp++] = ActivationRecord(ip, inst.operand[1].intval);
+        }
+        void popScope() {
             fp--;
             if (verbLev > 1)
                 cout<<"Leaving scope."<<endl;
@@ -191,15 +197,23 @@ class VM {
             if (top().type == LIST)
                 top().list->push_back(item);
         }
+        void pushList() {
+            StackItem item = pop();
+            if (top().type == LIST)
+                top().list->push_front(item);
+        }
         void haltvm() {
             running = false;
         }
         void execute(Instruction& inst) {
             switch (inst.op) {
-                case append:   { appendList();   } break;
+                case list_append: { appendList();   } break;
+                case list_push:  { pushList(); }
                 case call:     { openScope(inst); } break;
                 case entfun:   { enterFunction(inst); } break;
                 case retfun:   { closeScope(); } break;
+                case entblk:   { openBlock(inst); } break;
+                case retblk:   { popScope(); } break;
                 case jump:     { uncondBranch(inst); } break;
                 case brf:      { branchOnFalse(inst); } break;
                 case binop:    { binaryOperation(inst); } break;

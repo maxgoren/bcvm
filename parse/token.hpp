@@ -13,6 +13,7 @@ class Token {
         Token(TKSymbol sym = TK_EOI, string st = "<nil>") : symbol(sym), strval(st), depth(-1) { }
         TKSymbol getSymbol() { return symbol; }
         string getString() { return strval; }
+        void setString(string s) { strval = s; }
         int scopeLevel() { return depth; }
         void setScopeLevel(int level) { depth = level; }
 };

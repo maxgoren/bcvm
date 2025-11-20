@@ -2,7 +2,7 @@
 #define stackitem_hpp
 #include <iostream>
 #include <cmath>
-#include <vector>
+#include <deque>
 using namespace std;
 
 
@@ -32,6 +32,10 @@ struct Function {
     }
 };
 
+Function* makeFunction(string name, int start, Scope* s) {
+    return new Function(name, start, s); 
+}
+
 struct Closure {
     Function* func;
     Closure(Function* f) : func(f) { }
@@ -46,7 +50,7 @@ struct StackItem {
         string* strval;
         Function* func;
         Closure* closure;
-        vector<StackItem>* list;
+        deque<StackItem>* list;
     };
     string toString() {
         switch (type) {
@@ -79,7 +83,7 @@ struct StackItem {
     StackItem(bool balue) { boolval = balue; type = BOOLEAN; }
     StackItem(Function* f) { func = f; type = FUNCTION; }
     StackItem(Closure* c) { closure = c; type = CLOSURE; }
-    StackItem(vector<StackItem>* l) { list = l; type = LIST; }
+    StackItem(deque<StackItem>* l) { list = l; type = LIST; }
     StackItem() { type = NIL; intval = -66; }
     StackItem(const StackItem& si) {
         type = si.type;

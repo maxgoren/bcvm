@@ -1,8 +1,8 @@
-fn ok() {
+fn ok(let k) {
     let a := "outter";
-    fn showA() {
-        println a;
-    };
-    showA();
-};
-ok();
+    fn showA(let j) {
+        println j;
+    }
+    showA(a)
+}
+ok(1);
