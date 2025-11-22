@@ -50,7 +50,7 @@ void repl() {
         getline(cin, input);
         sb->init(input);
         vector<Instruction> code = compiler.compile(parser.parse(lexer.lex(sb)));
-        vm.run(code, 1);
+        vm.run(code, 3);
     }
 }
 

@@ -7,3 +7,7 @@ while (i < 3) {
 }
 x[1] := 66;
 println x;
+x.append(42);
+x.push(13);
+println x;
+println x.size();

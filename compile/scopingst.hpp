@@ -15,7 +15,6 @@ struct SymbolTableEntry {
     int depth;
     Function* func;
     SymbolTableEntry(string n, int adr, Function* f, int d) : type(2), addr(adr), name(n), depth(d), func(f) { }
-    SymbolTableEntry(string n, int adr, int sip, Scope* s, int d) : type(2), name(n), depth(d), addr(adr) { func = makeFunction(name, sip, s); }
     SymbolTableEntry(string n, int adr, int d) : type(1), name(n), addr(adr), depth(d), func(nullptr) { }
     SymbolTableEntry() : type(0), addr(-1), func(nullptr) { }
     SymbolTableEntry(const SymbolTableEntry& e) {
@@ -58,20 +57,20 @@ struct BlockScope {
         data[n++] = st;
     }
     SymbolTableEntry& find(string name) {
-        int i = 0;
-        while (i < n) {
+        int i = n-1;
+        while (i >= 0) {
             if (data[i].name == name) {
                 return data[i];
             }
-            i++;
+            i--;
         }
-        return data[i];
+        return end();
     }
     SymbolTableEntry& end() {
         return data[n];
     }
     SymbolTableEntry& operator[](string name) {
-        for (int i = 0; i < n; i++) {
+        for (int i = n-1; i >= 0; i--) {
             if (data[i].name == name) {
                 return data[i];
             }
@@ -106,7 +105,7 @@ class ScopingST {
                 d++;
                 x = x->enclosing;
             }
-            return d;
+            return d-1;
         }
     public:
         ScopingST() {
@@ -141,9 +140,7 @@ class ScopingST {
             st->symTable[name] = SymbolTableEntry(name, nextAddr(), depth(st));
         }
         bool existsInScope(string name) {
-            if (st->symTable.find(name) != st->symTable.end())
-                return true;
-            return false;
+            return st->symTable.find(name) != st->symTable.end();
         }
         SymbolTableEntry& lookup(string name) {
             Scope* x = st;

@@ -75,8 +75,13 @@ class VM {
             }
             //cout<<"popp function"<<endl;
             if (sp > 0) func = pop();
-            if (func.type != CLOSURE) ip =  inst.operand[0].intval;
-            else ip = func.closure->func->start_ip;
+            if (func.type != CLOSURE) {
+                //cout<<"Not closure."<<endl;
+                ip = inst.operand[0].intval;
+            } else {
+                //cout<<"Closure."<<endl;
+                ip = func.closure->func->start_ip;
+            }
             inparams = false;
         }
         void global_store() {
@@ -109,8 +114,9 @@ class VM {
             push(opstk[(MAX_OP_STACK-1) - inst.operand[0].intval]);
         }
         void loadLocal(Instruction& inst) {
-            push(callstk[fp-(inparams ? 2:1)].locals[inst.operand[0].intval]);
-        }
+            int localAddr = fp - (inparams ? inst.operand[1].intval+1:inst.operand[1].intval);
+            push(callstk[localAddr].locals[inst.operand[0].intval]);
+        } 
         void loadIndexed(Instruction& inst) {
             StackItem t = pop();
             push(pop().list->at(t.numval));
@@ -208,7 +214,8 @@ class VM {
         void execute(Instruction& inst) {
             switch (inst.op) {
                 case list_append: { appendList();   } break;
-                case list_push:  { pushList(); }
+                case list_push:  { pushList(); } break;
+                case list_len:  { push((double)pop().list->size()); } break;
                 case call:     { openScope(inst); } break;
                 case entfun:   { enterFunction(inst); } break;
                 case retfun:   { closeScope(); } break;

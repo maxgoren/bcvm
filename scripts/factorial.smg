@@ -5,9 +5,9 @@ fn fact(let n) {
 	return fact(n-1)*n;
 }
 fn listFacts(let k) {
-	if (k > 0) {
+	if (k > 5) {
 		println fact(k);
 		listFacts(k-1);
 	}
 }
-listFacts(10);
+listFacts(7);

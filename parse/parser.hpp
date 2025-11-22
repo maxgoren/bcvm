@@ -99,12 +99,21 @@ class Parser {
                 n->left = expression();
             } else if (expect(TK_APPEND)) {
                 n = new astnode(LIST_EXPR, current());
-                match(TK_APPEND);               
+                match(TK_APPEND);
+                match(TK_LPAREN);               
                 n->left = expression();
+                match(TK_RPAREN);
             } else if (expect(TK_PUSH)) {
                 n = new astnode(LIST_EXPR, current());
                 match(TK_PUSH);
+                match(TK_LPAREN);
                 n->left = expression();
+                match(TK_RPAREN);
+            } else if (expect(TK_SIZE)) {
+                n = new astnode(LIST_EXPR, current());
+                match(TK_SIZE);
+                match(TK_LPAREN);
+                match(TK_RPAREN);
             }
             if (n != nullptr && n->expr == ID_EXPR) {
                 while (expect(TK_LPAREN) || expect(TK_LB) || expect(TK_PERIOD)) {

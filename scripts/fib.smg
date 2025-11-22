@@ -14,5 +14,4 @@ fn listFibs(let k) {
 	println k;
 	return k;
 }
-let fc := listFibs;
-fc(4);
+listFibs(6);

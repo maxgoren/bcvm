@@ -1,8 +1,10 @@
-fn ok(let k) {
-    let a := "outter";
-    fn showA(let j) {
-        println j;
+{
+    let i := 13;
+    println i; 
+    {
+        println i;
+        let i := 24;
+        println i;
     }
-    showA(a)
+    println i;
 }
-ok(1);

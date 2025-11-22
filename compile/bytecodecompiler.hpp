@@ -27,8 +27,6 @@ class  ByteCodeCompiler {
             return symTable.depth();
         }
         SymbolTableEntry& lookup(string varname) {
-            if (symTable.lookup(varname).addr == -1)
-                symTable.insert(varname);
             return symTable.lookup(varname);
         }
         void emit(Instruction inst) {
@@ -74,13 +72,13 @@ class  ByteCodeCompiler {
         void emitLoad(astnode* n, bool needLvalue) {
             SymbolTableEntry item = lookup(n->token.getString());
             if (needLvalue) {
-                if (symTable.depth() == -1) {
+                if (item.depth == -1) {
                     emit(Instruction(ldglobaladdr, item.addr, item.depth));
                 } else {
                     emit(Instruction(ldlocaladdr, item.addr, item.depth));
                 }
             } else {
-                if (symTable.depth() == -1) {
+                if (item.depth == -1) {
                     emit(Instruction(ldglobal, item.addr, item.depth));
                 } else {
                     emit(Instruction(ldlocal, item.addr, item.depth));
@@ -113,6 +111,9 @@ class  ByteCodeCompiler {
                     genExpression(n->left, false);
                     emit(Instruction(list_push));
                 } break;
+                case TK_SIZE: {
+                    emit(Instruction(list_len));
+                } break;
             }
         }
         void emitReturn(astnode* n) {
@@ -140,6 +141,7 @@ class  ByteCodeCompiler {
             int L1 = skipEmit(0);
             skipEmit(1);
             string name = nameLambda();
+            n->token.setString(name);
             emit(Instruction(defun, name, numArgs, 0));
             symTable.openFunctionScope(name, L1+1);
             genCode(n->right, false);
@@ -150,15 +152,7 @@ class  ByteCodeCompiler {
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
-            SymbolTableEntry fn_info = symTable.lookup(name);
-            emit(Instruction(ldconst, new Closure(fn_info.func)));
-            if (symTable.depth() == -1) {
-                emit(Instruction(ldglobaladdr, fn_info.addr, fn_info.depth));
-                emit(Instruction(stglobal, fn_info.addr));
-            } else {
-                emit(Instruction(ldlocaladdr, fn_info.addr, fn_info.depth));
-                emit(Instruction(stlocal, fn_info.addr));
-            }          
+            emitStoreFuncInEnvironment(name);
         }
         void emitFunctionCall(astnode* n) {
             SymbolTableEntry fn_info = functionInfo(n->left->token.getString());
@@ -208,15 +202,18 @@ class  ByteCodeCompiler {
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
+            emitStoreFuncInEnvironment(name);            
+        }
+        void emitStoreFuncInEnvironment(string name) {
             SymbolTableEntry fn_info = symTable.lookup(name);
             emit(Instruction(ldconst, new Closure(fn_info.func)));
-            if (symTable.depth() == -1) {
+            if (fn_info.depth == -1) {
                 emit(Instruction(ldglobaladdr, fn_info.addr, fn_info.depth));
                 emit(Instruction(stglobal, fn_info.addr));
             } else {
                 emit(Instruction(ldlocaladdr, fn_info.addr, fn_info.depth));
                 emit(Instruction(stlocal, fn_info.addr));
-            }            
+            }
         }
         void emitWhile(astnode* n) {
             int P1 = skipEmit(0);
@@ -310,37 +307,41 @@ class  ByteCodeCompiler {
                     buildSymbolTable(t->left);
                     buildSymbolTable(t->right);
                     symTable.closeScope();
+                    buildSymbolTable(t->next);
                     return;
                 }  break;
                 case BLOCK_STMT: {
                     t->token.setString(nameBlock());
                     symTable.openFunctionScope(t->token.getString(), -1);
                     buildSymbolTable(t->left);
-                    buildSymbolTable(t->next);
                     symTable.closeScope();
+                    buildSymbolTable(t->next);
                     return;
                 } break;
                 case LET_STMT: {
-                    astnode* x = t;
+                    astnode* x = t->left;
                     while (x != nullptr) {
-                        if (t->expr == ID_EXPR)
+                        if (x->expr == ID_EXPR && !symTable.existsInScope(x->token.getString())) {
+                            symTable.insert(x->token.getString());
                             break;
+                        }
                         x = x->left;
                     }
-                    if (x != nullptr && symTable.existsInScope(x->token.getString()))
-                        symTable.insert(x->token.getString());
                     buildSymbolTable(t->left);
                 } break;
                 default: 
-                    buildSymbolTable(t->left);
-                    buildSymbolTable(t->right);
                 break;
             }
+            buildSymbolTable(t->left);
+            buildSymbolTable(t->right);
         } 
         void buildExpressionST(astnode* t) {
             switch (t->expr) {
-                case ID_EXPR: 
-                    lookup(t->token.getString()); break;
+                case ID_EXPR: {
+                    if (symTable.lookup(t->token.getString()).addr == -1) {
+                        cout<<"Error: Unknown variable name: "<<t->token.getString()<<endl;
+                    } 
+                } break;
                 default: break;
             }
             buildSymbolTable(t->left);
