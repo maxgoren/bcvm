@@ -1,0 +1,9 @@
+let x := "global";
+fn out() {
+    let x := "inz";
+    fn inn() {
+        println x;
+    }
+    inn();
+}
+out();

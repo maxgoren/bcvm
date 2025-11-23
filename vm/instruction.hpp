@@ -3,7 +3,7 @@
 #include "stackitem.hpp"
 
 enum VMInstruction {
-    defun, label, ldfield,
+    defun, label, ldfield, ldconstpl,
     ldconst, ldglobal, ldlocal,
     ldlocaladdr, ldglobaladdr, 
     stglobal, stlocal, stfield,
@@ -16,9 +16,9 @@ enum VMInstruction {
     print, halt
 };
 
-string instrStr[] = { ".def", "label", "ldfield", "ldconst", "ldglobal", "ldlocal", "ldlocaladdr", "ldglobaladdr",
+string instrStr[] = { "defun", "label", "ldfield", "ldconstpl", "ldconst", "ldglobal", "ldlocal", "ldlocaladdr", "ldglobaladdr",
                      "stglobal", "stlocal", "stfield", "call", "entfun", "retfun", "entblk", "retblk", "jump", "brf", "binop", "unop", 
-                     "append", "push", "list_len" "print", "halt"};
+                     "append", "push", "list_len", "print", "halt"};
 
 enum VMOperators {
     VM_ADD = 1, VM_SUB = 2, VM_MUL = 3, VM_DIV = 4, 

@@ -145,9 +145,9 @@ class Parser {
         astnode* unary() {
             cout<<"unary expr"<<endl;
             astnode* n = nullptr;
-            if (expect(TK_SUB)) {
+            if (expect(TK_SUB) || expect(TK_NOT)) {
                 n = new astnode(UOP_EXPR, current());
-                match(TK_SUB);
+                match(lookahead());
                 n->left = unary();
             } else {
                 n = primary();

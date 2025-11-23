@@ -27,25 +27,29 @@ class VM {
         int verbLev;
         Instruction haltSentinel;
         vector<Instruction> codePage;
+        BlockScope constPool;
         int ip;
         int sp;
         int fp;
         bool inparams;
         ActivationRecord callstk[MAX_CALL_STACK];
         StackItem opstk[MAX_OP_STACK];
+        ActivationRecord& peekAR() {
+            return callstk[(fp-inparams)];
+        }
         void push(StackItem item) {
             sp = sp < 0 ? 0:sp;
-            opstk[sp++] = item;
+            opstk[++sp] = item;
             if (verbLev > 1)
-                cout<<"Push("<<sp-1<<"): "<<opstk[sp-1].toString()<<endl;
+                cout<<"Push("<<sp<<"): "<<opstk[sp].toString()<<endl;
         }
         StackItem& top() {
-            return opstk[sp-1];
+            return opstk[sp];
         }
         StackItem pop() {
             if (verbLev > 1)
-                cout<<"Pop: "<<opstk[sp-1].toString()<<endl;
-            return opstk[--sp];
+                cout<<"Pop: "<<opstk[sp].toString()<<endl;
+            return opstk[sp--];
         }
         void openScope(Instruction& inst) {
             if (verbLev > 1)
@@ -54,11 +58,11 @@ class VM {
             inparams = true;
         }
         void closeScope() {
-            ip = callstk[fp-1].returnAddress;
+            ip = callstk[fp].returnAddress;
             popScope();
         }
         void openBlock(Instruction& inst) {
-            callstk[fp++] = ActivationRecord(ip, inst.operand[1].intval);
+            callstk[++fp] = ActivationRecord(ip, inst.operand[1].intval);
         }
         void popScope() {
             fp--;
@@ -66,37 +70,48 @@ class VM {
                 cout<<"Leaving scope."<<endl;
         }
         void enterFunction(Instruction& inst) {
-            callstk[fp-1].returnAddress = ip;
+            callstk[fp].returnAddress = ip;
             //cout<<"jump to addres: "<<ip<<endl;
             StackItem func;
             //cout<<"move args from stack to AR: ";
-            for (int i = callstk[fp-1].num_args; i > 0; i--) {
-                callstk[fp-1].locals[i] = pop();
+            for (int i = callstk[fp].num_args; i > 0; i--) {
+                callstk[fp].locals[i] = pop();
             }
-            //cout<<"popp function"<<endl;
-            if (sp > 0) func = pop();
+            func = pop();
             if (func.type != CLOSURE) {
-                //cout<<"Not closure."<<endl;
                 ip = inst.operand[0].intval;
             } else {
-                //cout<<"Closure."<<endl;
                 ip = func.closure->func->start_ip;
             }
             inparams = false;
         }
-        void global_store() {
+        void storeGlobal() {
             StackItem t = pop();
             StackItem val = pop();
-            opstk[t.intval] =  val;
+            callstk[0].locals[t.intval] =  val;
             if (verbLev > 1)
                 cout<<"Stored global at "<<t.intval<<endl;
         }
-        void local_store(int depth) {
+        void loadGlobal(Instruction& inst) {
+            if (verbLev > 1)
+                cout<<"Load "<<callstk[0].locals[inst.operand[0].intval].toString()<<" from "<<(inst.operand[0].intval)<<endl;
+            push(callstk[0].locals[inst.operand[0].intval]);
+        }
+        void loadLocal(Instruction& inst) {
+            push(peekAR().locals[inst.operand[0].intval]);
+            if (verbLev > 1)
+                cout<<"loaded local from "<<inst.operand[0].intval<<" of scope "<<(fp-(inparams?1:0))<<(inparams ? " as param":" as local")<<endl;
+        } 
+        void storeLocal(Instruction& inst) {
             StackItem t = pop();
             StackItem val = pop();
-            callstk[depth].locals[t.intval] = val;
+            peekAR().locals[t.intval] = val;
             if (verbLev > 1)
-                cout<<"Stored local at "<<t.intval<<" in scope "<<depth<<endl;
+                cout<<"Stored local at "<<t.intval<<" in scope "<<(fp-(inparams?1:0))<<(inparams ? " as param":" as local")<<endl;
+        }
+        void loadIndexed(Instruction& inst) {
+            StackItem t = pop();
+            push(pop().list->at(t.numval));
         }
         void indexed_store(Instruction& inst) {
             StackItem index = pop();
@@ -107,19 +122,6 @@ class VM {
         }
         void loadConst(Instruction& inst) {
             push(inst.operand[0]);
-        }
-        void loadGlobal(Instruction& inst) {
-            if (verbLev > 1)
-                cout<<"Load "<<opstk[(MAX_OP_STACK-1) - inst.operand[0].intval].toString()<<" from "<<((MAX_OP_STACK-1) - inst.operand[0].intval)<<endl;
-            push(opstk[(MAX_OP_STACK-1) - inst.operand[0].intval]);
-        }
-        void loadLocal(Instruction& inst) {
-            int localAddr = fp - (inparams ? inst.operand[1].intval+1:inst.operand[1].intval);
-            push(callstk[localAddr].locals[inst.operand[0].intval]);
-        } 
-        void loadIndexed(Instruction& inst) {
-            StackItem t = pop();
-            push(pop().list->at(t.numval));
         }
         void branchOnFalse(Instruction& inst) {
             bool tmp = pop().boolval;
@@ -227,14 +229,14 @@ class VM {
                 case unop:     { unaryOperation(inst); } break;
                 case print:    { printTopOfStack(); } break;
                 case halt:     { haltvm(); } break;
-                case stglobal: { global_store(); } break;
-                case stlocal:  { local_store(inst.operand[0].intval); } break;
+                case stglobal: { storeGlobal(); } break;
+                case stlocal:  { storeLocal(inst); } break;
                 case stfield:  { indexed_store(inst); } break;
                 case ldconst:  { loadConst(inst); } break;
                 case ldglobal: { loadGlobal(inst); } break;
                 case ldlocal:  { loadLocal(inst); } break;
                 case ldlocaladdr:  { push(inst.operand[0].intval); } break;
-                case ldglobaladdr: { push((MAX_OP_STACK-1) - inst.operand[0].intval); } break;
+                case ldglobaladdr: { push(inst.operand[0].intval); } break;
                 case ldfield:      { loadIndexed(inst); } break;
                 case label: { /* nop() */ } break;
                 default:
@@ -245,22 +247,24 @@ class VM {
             return ip < codePage.size() && ip > -1 ?codePage[ip++]:haltSentinel;
         }
         void printInstruction(Instruction& inst) {
-            cout<<ip<<": [0x0"<<inst.op<<"("<<instrStr[inst.op]<<"), "<<inst.operand[0].toString()<<","<<inst.operand[1].toString()<<"]  \n";
+            cout<<"Instrctn: "<<ip<<": [0x0"<<inst.op<<"("<<instrStr[inst.op]<<"), "<<inst.operand[0].toString()<<","<<inst.operand[1].toString()<<"]  \n";
         }
         void printTopOfStack() {
             cout<<pop().toString()<<endl;
         }
         void printOperandStack() {
+            cout<<"Operands:  ";
             for (int i = 0; i < sp; i++) {
-                cout<<"["<<opstk[i].toString()<<"] ";
+                cout<<i<<": ["<<opstk[i].toString()<<"] ";
             }
             cout<<endl;
         }
         void printCallStack() {
+            cout<<"Callstack: \n";
             for (int i = fp-1; i >= 0; i--) {
-                cout<<i<<": [ ";
-                for (int j = 0; j <= callstk[i].num_args; j++) {
-                    cout<<"{"<<j<<": "<<callstk[i].locals[j].toString()<<"} ";
+                cout<<"\t   "<<i<<": [ ";
+                for (int j = 1; j <= 5; j++) {
+                    cout<<(j)<<": "<<"{"<<callstk[i].locals[j].toString()<<"}, ";
                 }
                 cout<<"]"<<endl;
             }
@@ -276,20 +280,26 @@ class VM {
             sp = 0;
             fp = 0;
             haltSentinel = Instruction(halt);
+            callstk[fp++] = ActivationRecord(MAX_CALL_STACK, 0);
         }
         void run(vector<Instruction>& cp, int verbosity) {
             init(cp, verbosity);
             running = true;
             while (running) {
                 Instruction inst = fetch();
-                if (verbosity > 0)
+                if (verbosity > 0) {
                     printInstruction(inst);
+                    cout<<"----------------"<<endl;
+                }
                 execute(inst);
-                //cout<<"----------------"<<endl;
-                if (verbosity > 1)
+                if (verbosity > 1) {
+                    cout<<"----------------"<<endl;                
                     printOperandStack();
-                if (verbosity > 2)
+                }
+                if (verbosity > 2) {
                     printCallStack();
+                    cout<<"================"<<endl;
+                }
             }
         }
 };

@@ -41,6 +41,7 @@
 {"\*", TK_MUL}
 {"/", TK_DIV}
 {"%", TK_MOD}
+{"!", TK_NOT}
 {":=", TK_ASSIGN}
 {"\+=", TK_ASSIGN_SUM}
 {"-=", TK_ASSIGN_DIFF}

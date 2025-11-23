@@ -37,7 +37,7 @@ void runCommand(string cmd, int verbosity) {
     compileAndRun(sb, verbosity);
 }
 
-void repl() {
+void repl(int vb) {
     bool looping = true;
     StringBuffer* sb = new StringBuffer();
     Lexer lexer;
@@ -50,7 +50,7 @@ void repl() {
         getline(cin, input);
         sb->init(input);
         vector<Instruction> code = compiler.compile(parser.parse(lexer.lex(sb)));
-        vm.run(code, 3);
+        vm.run(code, vb);
     }
 }
 
@@ -63,14 +63,17 @@ int verbosityLevel(char *str) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 3) {
-        repl();
-    } else if (argv[1][0] == '-') {
-        switch (argv[1][1]) {
-            case 'e': runCommand(argv[2], verbosityLevel(argv[1])); break;
-            case 'f': runScript(argv[2], verbosityLevel(argv[1])); break;
-            default: break;
-        }
+    switch (argc) {
+        case 1: repl(0); break;
+        case 2: repl(verbosityLevel(argv[1]));
+        default:
+            if (argc == 3 && argv[1][0] == '-') {
+                switch (argv[1][1]) {
+                    case 'e': runCommand(argv[2], verbosityLevel(argv[1])); break;
+                    case 'f': runScript(argv[2], verbosityLevel(argv[1])); break;
+                    default: break;
+                }
+            }
     }
     return 0;
 }
