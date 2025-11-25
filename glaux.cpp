@@ -5,22 +5,35 @@
 #include "parse/lexer.hpp"
 #include "parse/parser.hpp"
 #include "vm/stackitem.hpp"
-#include "compile/bytecodecompiler.hpp"
+#include "compile/bcgen.hpp"
 #include "vm/vm.hpp"
 using namespace std;
 
+class Compiler {
+    private:
+        Lexer lexer;
+        Parser parser;
+        ByteCodeGenerator compiler;
+    public:
+        Compiler() {
 
-vector<Instruction> compile(CharBuffer* buff) {
-    Lexer lexer;
-    Parser parser;
-    ByteCodeCompiler compiler;
-    return compiler.compile(parser.parse(lexer.lex(buff)));
-}
-
+        }
+        ConstPool& getConstPool() {
+            return compiler.getConstPool();
+        }
+        vector<Instruction> compile(CharBuffer* buff) {
+            return compiler.compile(parser.parse(lexer.lex(buff)));
+        }
+        vector<Instruction> operator()(CharBuffer* buff) {
+            return compile(buff);
+        }
+};
 
 void compileAndRun(CharBuffer* buff, int verbosity) {
     VM vm;
-    vector<Instruction> code = compile(buff);
+    Compiler compiler;
+    vector<Instruction> code = compiler.compile(buff);
+    vm.setConstPool(compiler.getConstPool());
     vm.run(code, verbosity);
 }
 
@@ -40,16 +53,15 @@ void runCommand(string cmd, int verbosity) {
 void repl(int vb) {
     bool looping = true;
     StringBuffer* sb = new StringBuffer();
-    Lexer lexer;
-    Parser parser;
-    ByteCodeCompiler compiler;
+    Compiler compiler;
     VM vm;
     while (looping) {
         string input;
-        cout<<"bcvm> ";
+        cout<<"Glaux> ";
         getline(cin, input);
         sb->init(input);
-        vector<Instruction> code = compiler.compile(parser.parse(lexer.lex(sb)));
+        vector<Instruction> code = compiler.compile(sb);
+        vm.setConstPool(compiler.getConstPool());
         vm.run(code, vb);
     }
 }

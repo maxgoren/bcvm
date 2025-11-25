@@ -3,19 +3,19 @@
 #include "../parse/ast.hpp"
 #include "../vm/instruction.hpp"
 #include "scopingst.hpp"
+#include "stresolver.hpp"
 using namespace std;
 
 
 //{ fn ok() { println "hi"; }; ok(); }
 
 
-class  ByteCodeCompiler {
+class  ByteCodeGenerator {
     private:
         vector<Instruction> code;
         int cpos;
         int highCI;
         ScopingST symTable;
-        BlockScope constPool;
         string nextLabel() {
             static int next = 0;
             return "L" + to_string(next++);
@@ -76,16 +76,12 @@ class  ByteCodeCompiler {
                 if (item.depth == -1) {
                     emit(Instruction(ldglobaladdr, item.addr, item.depth));
                 } else {
-                    cout<<"Table depth: "<<symTable.depth()<<endl;
-                    cout<<"Item depth: "<<item.depth<<endl;
                     emit(Instruction(ldlocaladdr, item.addr, symTable.depth() - item.depth));
                 }
             } else {
                 if (item.depth == -1) {
                     emit(Instruction(ldglobal, item.addr, item.depth));
                 } else {
-                    cout<<"Table depth: "<<symTable.depth()<<endl;
-                    cout<<"Item depth: "<<item.depth<<endl;
                     emit(Instruction(ldlocal, item.addr, symTable.depth() - item.depth));
                 }
             }
@@ -131,8 +127,14 @@ class  ByteCodeCompiler {
         }
         void emitConstant(astnode* n) {
             switch (n->token.getSymbol()) {
-                case TK_NUM:    emit(Instruction(ldconst, stod(n->token.getString()))); break;
-                case TK_STRING: emit(Instruction(ldconst, n->token.getString()));  break;
+                case TK_NUM:    {
+                    int idx = symTable.getConstPool().insert(StackItem(stod(n->token.getString())));
+                    emit(Instruction(ldconst, idx));  
+                } break;
+                case TK_STRING: {
+                    int idx = symTable.getConstPool().insert(StackItem(n->token.getString()));
+                    emit(Instruction(ldconst, idx));  
+                } break;
                 case TK_TRUE:   emit(Instruction(ldconst, true)); break;
                 case TK_FALSE:  emit(Instruction(ldconst, false)); break;
                 case TK_NIL:    emit(Instruction(ldconst));
@@ -165,20 +167,12 @@ class  ByteCodeCompiler {
             for (auto x = n->right; x != nullptr; x = x->next)
                 argsCount++;
             genExpression(n->left, false);
-            if (fn_info.type == 2) {
-                emit(Instruction(call, fn_info.func->start_ip, argsCount, fn_info.addr));
-            } else {
-                emit(Instruction(call, 0, argsCount, 0));
-            }
+            emit(Instruction(call, fn_info.constPoolIndex, argsCount, fn_info.addr));
             genCode(n->right, false);
-            if (fn_info.type == 2) {
-                emit(Instruction(entfun, fn_info.func->start_ip));
-            } else {
-                emit(Instruction(entfun, 0));
-            }
+            emit(Instruction(entfun, fn_info.constPoolIndex, argsCount));
         }
         void emitListConstructor(astnode* n) {
-            emit(Instruction(ldconst, new deque<StackItem>()));
+            emit(Instruction(ldconst, symTable.getConstPool().insert(new deque<StackItem>())));
             for (astnode* it = n->left; it != nullptr; it = it->next) {
                 genExpression(it, false);
                 emit(Instruction(list_append));
@@ -213,7 +207,7 @@ class  ByteCodeCompiler {
         }
         void emitStoreFuncInEnvironment(string name) {
             SymbolTableEntry fn_info = symTable.lookup(name);
-            emit(Instruction(ldconst, new Closure(fn_info.func)));
+            emit(Instruction(ldconst, symTable.getConstPool().get(fn_info.constPoolIndex)));
             if (fn_info.depth == -1) {
                 emit(Instruction(ldglobaladdr, fn_info.addr, fn_info.depth));
                 emit(Instruction(stglobal, fn_info.addr));
@@ -303,85 +297,19 @@ class  ByteCodeCompiler {
                 genCode(n->next, false);
             }
         }
-        string nameBlock() {
-            static int bnum = 0;
-            return "Block" + to_string(bnum++);
-        }
-        void buildStatementST(astnode* t) {
-            if (t == nullptr)
-                return;
-            switch (t->stmt) {
-                case DEF_STMT: {
-                    symTable.openFunctionScope(t->token.getString(), -1);
-                    buildSymbolTable(t->left);
-                    buildSymbolTable(t->right);
-                    symTable.closeScope();
-                    buildSymbolTable(t->next);
-                    return;
-                }  break;
-                case BLOCK_STMT: {
-                    t->token.setString(nameBlock());
-                    symTable.openFunctionScope(t->token.getString(), -1);
-                    buildSymbolTable(t->left);
-                    symTable.closeScope();
-                    buildSymbolTable(t->next);
-                    return;
-                } break;
-                case LET_STMT: {
-                    switch (t->left->expr) {
-                        case ID_EXPR: buildExpressionST(t->left, true); break;
-                        case BIN_EXPR: {
-                            buildExpressionST(t->left, true);
-                            buildExpressionST(t->right, false);
-                        } break;          
-                    }
-                } break;
-                default: 
-                break;
-            }
-            buildSymbolTable(t->left);
-            buildSymbolTable(t->right);
-            buildSymbolTable(t->next);
-        } 
-        void buildExpressionST(astnode* t, bool fromLet) {
-            if (t == nullptr)
-                return;
-            switch (t->expr) {
-                case ID_EXPR: {
-                    if (fromLet && symTable.existsInScope(t->token.getString()) == false) {
-                        symTable.insert(t->token.getString());
-                    } else if (symTable.lookup(t->token.getString()).addr == -1) {    
-                        cout<<"Error: Unknown variable name: "<<t->token.getString()<<endl;
-                    } 
-                } break;
-                default: break;
-            }
-            buildExpressionST(t->left, fromLet);
-            buildExpressionST(t->right, fromLet);
-            buildSymbolTable(t->next);
-        }
-        void buildSymbolTable(astnode* t) {
-            if (t != nullptr) {
-                switch (t->kind) {
-                    case STMTNODE: {
-                        buildStatementST(t);
-                    } break;
-                    case EXPRNODE: {
-                        buildExpressionST(t, false);
-                    } break;
-                }
-            }
-        }
+        ScopeResolver sr;
     public:
-        ByteCodeCompiler() {
+        ByteCodeGenerator() {
             code = vector<Instruction>(255, Instruction(halt, 0));
             cpos = 0;
             highCI = 0;
         }
-
+        ConstPool& getConstPool() {
+            return symTable.getConstPool();
+        }
         vector<Instruction> compile(astnode* n) {
             cout<<"Build Symbol Table: "<<endl;
-            buildSymbolTable(n);
+            sr.buildSymbolTable(n, &symTable);
             cout<<"Compiling..."<<endl;
             genCode(n, false);
             cout<<"Compiled Bytecode: "<<endl;

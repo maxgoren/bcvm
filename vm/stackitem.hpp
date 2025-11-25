@@ -39,6 +39,15 @@ Function* makeFunction(string name, int start, Scope* s) {
 struct Closure {
     Function* func;
     Closure(Function* f) : func(f) { }
+    Closure(const Closure& c) {
+        func = c.func;
+    }
+    Closure& operator=(const Closure& c) {
+        if (this != &c) {
+            func = c.func;
+        }
+        return *this;
+    }
 };
 
 struct StackItem {
@@ -238,6 +247,36 @@ struct StackItem {
         }
         return *this;
     }
+};
+
+class ConstPool {
+    private:
+        StackItem data[255];
+        int n;
+    public:
+        ConstPool() {
+            n = 0;
+        }
+        ConstPool(const ConstPool& cp) {
+            n = cp.n;
+            for (int i = 0; i < n; i++)
+                data[i] = cp.data[i];
+        }
+        ConstPool& operator=(const ConstPool& cp) {
+            if (this != &cp) {
+                n = cp.n;
+            for (int i = 0; i < n; i++)
+                data[i] = cp.data[i];
+            }
+            return *this;
+        }
+        int insert(StackItem item) {
+            data[n++] = item;
+            return n-1;
+        }
+        StackItem& get(int indx) {
+            return data[indx];
+        }
 };
 
 #endif

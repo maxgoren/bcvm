@@ -28,7 +28,7 @@ class Parser {
         }
         bool match(TKSymbol symbol) {
             if (expect(symbol)) {
-                cout<<"\n----------------\nMatched "<<current().getString()<<"\n-------------------"<<endl;
+                //cout<<"\n----------------\nMatched "<<current().getString()<<"\n-------------------"<<endl;
                 advance();
                 return true;
             }
@@ -42,7 +42,7 @@ class Parser {
             return tokens[tpos].getSymbol();
         }
         astnode* argsList() {
-            cout<<"args list"<<endl;
+            //cout<<"args list"<<endl;
             astnode d, *t = &d;
             while (!expect(TK_RPAREN) && !expect(TK_RB)) {
                 if (expect(TK_COMMA))
@@ -53,7 +53,7 @@ class Parser {
             return d.next;
         }
         astnode* paramList() {
-            cout<<"param list"<<endl;
+            //cout<<"param list"<<endl;
             astnode d, *t = &d;
             while (!expect(TK_RPAREN)) {
                 if (expect(TK_COMMA))
@@ -64,7 +64,7 @@ class Parser {
             return d.next;
         }
         astnode* primary() {
-            cout<<"primary expr"<<endl;
+            //cout<<"primary expr"<<endl;
             astnode* n = nullptr;
             if (expect(TK_NUM)) {
                 n = new astnode(CONST_EXPR, current());
@@ -143,7 +143,7 @@ class Parser {
             return n;
         }
         astnode* unary() {
-            cout<<"unary expr"<<endl;
+            //cout<<"unary expr"<<endl;
             astnode* n = nullptr;
             if (expect(TK_SUB) || expect(TK_NOT)) {
                 n = new astnode(UOP_EXPR, current());
@@ -155,7 +155,7 @@ class Parser {
             return n;
         }
         astnode* factor() {
-            cout<<"factor"<<endl;
+            //cout<<"factor"<<endl;
             astnode* n = unary();
             while (expect(TK_MUL) || expect(TK_DIV) || expect(TK_MOD)) {
                 astnode* q = new astnode(BIN_EXPR, current());
@@ -167,7 +167,7 @@ class Parser {
             return n;
         }
         astnode* term() {
-            cout<<"term"<<endl;
+           // cout<<"term"<<endl;
             astnode* n = factor();
             while (expect(TK_ADD) || expect(TK_SUB)) {
                 astnode* q = new astnode(BIN_EXPR, current());
@@ -179,7 +179,7 @@ class Parser {
             return n;
         }
         astnode* relopExpr() {
-            cout<<"relop expr"<<endl;
+         //   cout<<"relop expr"<<endl;
             astnode* n = term();
             while (expect(TK_LT) || expect(TK_GT)) {
                 astnode* q = new astnode(BIN_EXPR, current());
@@ -191,7 +191,7 @@ class Parser {
             return n;
         }
         astnode* compExpr() {
-            cout<<"comp expr"<<endl; 
+         //   cout<<"comp expr"<<endl; 
             astnode* n = relopExpr();
             while (expect(TK_EQU) || expect(TK_NEQ)) {
                 astnode* q = new astnode(BIN_EXPR, current());
@@ -203,7 +203,7 @@ class Parser {
             return n;
         }
         astnode* expression() {
-            cout<<"expr"<<endl;
+       //     cout<<"expr"<<endl;
             astnode* n = compExpr();
             while (expect(TK_ASSIGN)) {
                 astnode* q = new astnode(BIN_EXPR, current());
@@ -215,7 +215,7 @@ class Parser {
             return n;
         }
         astnode* statement() {
-            cout<<"statement"<<endl;
+         //   cout<<"statement"<<endl;
             astnode* n = nullptr;
             switch (lookahead()) {
                 case TK_PRINTLN: {
@@ -290,7 +290,7 @@ class Parser {
             return n;
         }
         astnode* stmt_list() {
-            cout<<"stmt list"<<endl;
+         //   cout<<"stmt list"<<endl;
             astnode* x = statement();
             astnode* m = x;
             while (!expect(TK_EOI) && !expect(TK_RCURLY)) {

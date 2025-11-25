@@ -7,18 +7,17 @@ using namespace std;
 static const int MAX_OP_STACK = 1255;
 static const int MAX_CALL_STACK = 1255;
 
-
-
 struct ActivationRecord {
+    int num_args;
+    int num_locals;
     int returnAddress;
     StackItem locals[255];
-    int num_locals;
-    int num_args;
     ActivationRecord(int ra = 0, int numArgs = 0) {
         returnAddress = ra;
         num_args = numArgs;
     }
 };
+
 
 
 class VM {
@@ -27,29 +26,19 @@ class VM {
         int verbLev;
         Instruction haltSentinel;
         vector<Instruction> codePage;
-        BlockScope constPool;
         int ip;
         int sp;
         int fp;
         bool inparams;
-        ActivationRecord callstk[MAX_CALL_STACK];
+        ConstPool constPool;
+        ActivationRecord *callstk; //[MAX_CALL_STACK];
+        ActivationRecord *globals;
         StackItem opstk[MAX_OP_STACK];
         ActivationRecord& peekAR() {
             return callstk[(fp-inparams)];
         }
-        void push(StackItem item) {
-            sp = sp < 0 ? 0:sp;
-            opstk[++sp] = item;
-            if (verbLev > 1)
-                cout<<"Push("<<sp<<"): "<<opstk[sp].toString()<<endl;
-        }
         StackItem& top() {
             return opstk[sp];
-        }
-        StackItem pop() {
-            if (verbLev > 1)
-                cout<<"Pop: "<<opstk[sp].toString()<<endl;
-            return opstk[sp--];
         }
         void openScope(Instruction& inst) {
             if (verbLev > 1)
@@ -72,22 +61,22 @@ class VM {
         void enterFunction(Instruction& inst) {
             callstk[fp].returnAddress = ip;
             //cout<<"jump to addres: "<<ip<<endl;
-            StackItem func;
             //cout<<"move args from stack to AR: ";
-            for (int i = callstk[fp].num_args; i > 0; i--) {
-                callstk[fp].locals[i] = pop();
+            for (int i = inst.operand[1].intval; i > 0; i--) {
+                callstk[fp].locals[i] = opstk[sp--];
             }
-            func = pop();
-            if (func.type != CLOSURE) {
-                ip = inst.operand[0].intval;
+            StackItem func = opstk[sp--];
+            //cout<<"Pulled from top of stack: "<<func.toString()<<endl;
+            if (inst.operand[0].intval != -1) {
+                ip = constPool.get(inst.operand[0].intval).closure->func->start_ip;
             } else {
                 ip = func.closure->func->start_ip;
             }
             inparams = false;
         }
         void storeGlobal() {
-            StackItem t = pop();
-            StackItem val = pop();
+            StackItem t = opstk[sp--];
+            StackItem val = opstk[sp--];
             callstk[0].locals[t.intval] =  val;
             if (verbLev > 1)
                 cout<<"Stored global at "<<t.intval<<endl;
@@ -95,36 +84,40 @@ class VM {
         void loadGlobal(Instruction& inst) {
             if (verbLev > 1)
                 cout<<"Load "<<callstk[0].locals[inst.operand[0].intval].toString()<<" from "<<(inst.operand[0].intval)<<endl;
-            push(callstk[0].locals[inst.operand[0].intval]);
+            opstk[++sp] = (callstk[0].locals[inst.operand[0].intval]);
         }
         void loadLocal(Instruction& inst) {
-            push(peekAR().locals[inst.operand[0].intval]);
+            opstk[++sp] = (peekAR().locals[inst.operand[0].intval]);
             if (verbLev > 1)
                 cout<<"loaded local from "<<inst.operand[0].intval<<" of scope "<<(fp-(inparams?1:0))<<(inparams ? " as param":" as local")<<endl;
         } 
         void storeLocal(Instruction& inst) {
-            StackItem t = pop();
-            StackItem val = pop();
+            StackItem t = opstk[sp--];
+            StackItem val = opstk[sp--];
             peekAR().locals[t.intval] = val;
             if (verbLev > 1)
                 cout<<"Stored local at "<<t.intval<<" in scope "<<(fp-(inparams?1:0))<<(inparams ? " as param":" as local")<<endl;
         }
         void loadIndexed(Instruction& inst) {
-            StackItem t = pop();
-            push(pop().list->at(t.numval));
+            StackItem t = opstk[sp--];
+            opstk[++sp] = (opstk[sp--].list->at(t.numval));
         }
         void indexed_store(Instruction& inst) {
-            StackItem index = pop();
-            StackItem list = pop();
-            list.list->at(index.numval) = pop();
-            push(list);
-            push(index);
+            StackItem index = opstk[sp--];
+            StackItem list = opstk[sp--];
+            list.list->at(index.numval) = opstk[sp--];
+            opstk[++sp] = (list);
+            opstk[++sp] = (index);
         }
         void loadConst(Instruction& inst) {
-            push(inst.operand[0]);
+            if (inst.operand[0].type == INTEGER) {
+                opstk[++sp] = (constPool.get(inst.operand[0].intval));
+            } else {
+                opstk[++sp] = (inst.operand[0]);
+            }
         }
         void branchOnFalse(Instruction& inst) {
-            bool tmp = pop().boolval;
+            bool tmp = opstk[sp--].boolval;
             if (tmp == false) {
                 ip = inst.operand[0].intval;
             }
@@ -153,47 +146,47 @@ class VM {
         void relationOperation(Instruction& inst) {
             switch (inst.operand[0].intval) {
                 case VM_LT:   {
-                    StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(lhs.compareTo(rhs)));
+                    StackItem rhs = opstk[sp--];
+                    StackItem lhs = opstk[sp--];
+                    opstk[++sp] = (StackItem(lhs.compareTo(rhs)));
                 } break;
                 case VM_GT:   {
-                    StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(rhs.compareTo(lhs)));
+                    StackItem rhs = opstk[sp--];
+                    StackItem lhs = opstk[sp--];
+                    opstk[++sp] = (StackItem(rhs.compareTo(lhs)));
                 } break;
                 case VM_EQU:  {
-                    StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(!lhs.compareTo(rhs) && !rhs.compareTo(lhs)));
+                    StackItem rhs = opstk[sp--];
+                    StackItem lhs = opstk[sp--];
+                    opstk[++sp] = (StackItem(!lhs.compareTo(rhs) && !rhs.compareTo(lhs)));
                 } break;
                 case VM_NEQ: {
-                    StackItem rhs = pop();
-                    StackItem lhs = pop();
-                    push(StackItem(lhs.compareTo(rhs) || rhs.compareTo(lhs)));
+                    StackItem rhs = opstk[sp--];
+                    StackItem lhs = opstk[sp--];
+                    opstk[++sp] = (StackItem(lhs.compareTo(rhs) || rhs.compareTo(lhs)));
                 } break;
             }
         }
         void arithmeticOperation(Instruction& inst) {
             switch (inst.operand[0].intval) {
                 case VM_ADD:  {
-                    StackItem rhs = pop();
+                    StackItem rhs = opstk[sp--];
                     top().add(rhs);
                 } break;
                 case VM_SUB:  {
-                    StackItem rhs = pop();
+                    StackItem rhs = opstk[sp--];
                     top().sub(rhs);
                 } break;
                 case VM_MUL:  {
-                    StackItem rhs = pop();
+                    StackItem rhs = opstk[sp--];
                     top().mul(rhs);
                 } break;
                 case VM_DIV:  {
-                    StackItem rhs = pop();
+                    StackItem rhs = opstk[sp--];
                     top().div(rhs);
                 } break;
                 case VM_MOD:  {
-                    StackItem rhs = pop();
+                    StackItem rhs = opstk[sp--];
                     top().mod(rhs);
                 } break;
                 default:
@@ -201,12 +194,12 @@ class VM {
             }
         }
         void appendList() {
-            StackItem item = pop();
+            StackItem item = opstk[sp--];
             if (top().type == LIST)
                 top().list->push_back(item);
         }
         void pushList() {
-            StackItem item = pop();
+            StackItem item = opstk[sp--];
             if (top().type == LIST)
                 top().list->push_front(item);
         }
@@ -217,7 +210,7 @@ class VM {
             switch (inst.op) {
                 case list_append: { appendList();   } break;
                 case list_push:  { pushList(); } break;
-                case list_len:  { push((double)pop().list->size()); } break;
+                case list_len:  { opstk[++sp] = ((double)opstk[sp--].list->size()); } break;
                 case call:     { openScope(inst); } break;
                 case entfun:   { enterFunction(inst); } break;
                 case retfun:   { closeScope(); } break;
@@ -235,8 +228,8 @@ class VM {
                 case ldconst:  { loadConst(inst); } break;
                 case ldglobal: { loadGlobal(inst); } break;
                 case ldlocal:  { loadLocal(inst); } break;
-                case ldlocaladdr:  { push(inst.operand[0].intval); } break;
-                case ldglobaladdr: { push(inst.operand[0].intval); } break;
+                case ldlocaladdr:  { opstk[++sp] = (inst.operand[0].intval); } break;
+                case ldglobaladdr: { opstk[++sp] = (inst.operand[0].intval); } break;
                 case ldfield:      { loadIndexed(inst); } break;
                 case label: { /* nop() */ } break;
                 default:
@@ -250,11 +243,11 @@ class VM {
             cout<<"Instrctn: "<<ip<<": [0x0"<<inst.op<<"("<<instrStr[inst.op]<<"), "<<inst.operand[0].toString()<<","<<inst.operand[1].toString()<<"]  \n";
         }
         void printTopOfStack() {
-            cout<<pop().toString()<<endl;
+            cout<<opstk[sp--].toString()<<endl;
         }
         void printOperandStack() {
             cout<<"Operands:  ";
-            for (int i = 0; i < sp; i++) {
+            for (int i = 0; i <= sp; i++) {
                 cout<<i<<": ["<<opstk[i].toString()<<"] ";
             }
             cout<<endl;
@@ -281,6 +274,9 @@ class VM {
             fp = 0;
             haltSentinel = Instruction(halt);
             callstk[fp++] = ActivationRecord(MAX_CALL_STACK, 0);
+        }
+        void setConstPool(ConstPool& cp) {
+            constPool = cp;
         }
         void run(vector<Instruction>& cp, int verbosity) {
             init(cp, verbosity);

@@ -1,0 +1,9 @@
+fn ok(let i) {
+	return i+i;
+}
+println ok(3.1);
+let no := ok;
+println ok;
+println no;
+println ok(3.1);
+println no(3.1);
