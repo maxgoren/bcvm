@@ -7,7 +7,11 @@ using namespace std;
 
 
 enum SIType {
-   NIL, INTEGER, NUMBER, STRING, BOOLEAN, FUNCTION, CLOSURE, LIST
+    NIL, INTEGER, NUMBER, BOOLEAN, OBJECT
+ };
+ 
+enum GCType {
+    STRING, FUNCTION, CLOSURE, LIST
 };
 
 struct Scope;
@@ -36,17 +40,70 @@ Function* makeFunction(string name, int start, Scope* s) {
     return new Function(name, start, s); 
 }
 
+struct ActivationRecord;
+
 struct Closure {
     Function* func;
-    Closure(Function* f) : func(f) { }
+    ActivationRecord* env;
+    Closure(Function* f) : func(f), env(nullptr) { }
     Closure(const Closure& c) {
         func = c.func;
+        env = c.env;
     }
     Closure& operator=(const Closure& c) {
         if (this != &c) {
             func = c.func;
+            env = c.env;
         }
         return *this;
+    }
+};
+
+struct StackItem;
+string listToString(deque<StackItem>* list);
+
+struct GCItem {
+    GCType type;
+    bool marked;
+    union {
+        string* strval;
+        Function* func;
+        Closure* closure;
+        deque<StackItem>* list;
+    };
+    GCItem(string* s) : type(STRING), strval(s) { }
+    GCItem(Function* f) : type(FUNCTION), func(f) { }
+    GCItem(Closure* c) : type(CLOSURE), closure(c) { }
+    GCItem(deque<StackItem>* l) : type(LIST), list(l) { }
+    GCItem(const GCItem& si) {
+        switch (si.type) {
+            case STRING: strval = si.strval; break;
+            case FUNCTION: func = si.func; break;
+            case CLOSURE: closure = si.closure; break;
+            case LIST: list = si.list; break;
+        }
+        type = si.type;
+    }
+    GCItem& operator=(const GCItem& si) {
+        if (this != &si) {
+            switch (si.type) {
+                case STRING: strval = si.strval; break;
+                case FUNCTION: func = si.func; break;
+                case CLOSURE: closure = si.closure; break;
+                case LIST: list = si.list; break;
+            }
+            type = si.type;
+        }
+        return *this;
+    }
+    string toString() {
+        switch (type) {
+            case STRING: return *(strval);
+            case FUNCTION: return "(func)" + func->name;
+            case CLOSURE: return "(closure)" + closure->func->name + ", " + to_string(closure->func->start_ip);
+            case LIST: return listToString(list);
+        }
+        return "(Err.)";
     }
 };
 
@@ -56,10 +113,7 @@ struct StackItem {
         int intval;
         bool boolval;
         double numval;
-        string* strval;
-        Function* func;
-        Closure* closure;
-        deque<StackItem>* list;
+        GCItem* objval;
     };
     string toString() {
         switch (type) {
@@ -71,28 +125,21 @@ struct StackItem {
                     return to_string((int)numval);
                 return to_string(numval);
             } break;
-            case STRING: return *strval;
+            case OBJECT: return objval->toString();
             case BOOLEAN: return boolval ? "true":"false";
             case NIL: return "(nil)";
-            case FUNCTION: return "(func)" + func->name;
-            case CLOSURE: return "(closure)" + closure->func->name + ", " + to_string(closure->func->start_ip);
-            case LIST: {
-                string str = "[";
-                for (auto m : *list) {
-                    str += m.toString() + " ";
-                }
-                return str + "]";
-            };
+            
         }
         return "(nil)";
     }
     StackItem(int value) { intval = value; type = INTEGER; }
     StackItem(double value) { numval = value; type = NUMBER; }
-    StackItem(string value) { strval = new string(value); type = STRING; }
+    StackItem(string value) { objval = new GCItem(new string(value)); type = OBJECT; }
     StackItem(bool balue) { boolval = balue; type = BOOLEAN; }
-    StackItem(Function* f) { func = f; type = FUNCTION; }
-    StackItem(Closure* c) { closure = c; type = CLOSURE; }
-    StackItem(deque<StackItem>* l) { list = l; type = LIST; }
+    StackItem(Function* f) { objval = new GCItem(f); type = OBJECT; }
+    StackItem(Closure* c) { objval = new GCItem(c); type = OBJECT; }
+    StackItem(deque<StackItem>* l) { objval = new GCItem(l); type = OBJECT; }
+    StackItem(GCItem* i) { objval = i; type = OBJECT; }
     StackItem() { type = NIL; intval = -66; }
     StackItem(const StackItem& si) {
         type = si.type;
@@ -100,10 +147,7 @@ struct StackItem {
             case INTEGER: intval = si.intval; break;
             case NUMBER: numval = si.numval; break;
             case BOOLEAN: boolval = si.boolval; break;
-            case STRING: strval = si.strval; break;
-            case FUNCTION: func = si.func; break;
-            case CLOSURE: closure = si.closure; break;
-            case LIST: list = si.list; break;
+            case OBJECT: objval = si.objval; break;
         }
     }
     StackItem& operator=(const StackItem& si) {
@@ -114,14 +158,11 @@ struct StackItem {
             case INTEGER: intval = si.intval; break;
             case NUMBER: numval = si.numval; break;
             case BOOLEAN: boolval = si.boolval; break;
-            case STRING: strval = si.strval; break;
-            case FUNCTION: func = si.func; break;
-            case CLOSURE: closure = si.closure; break;
-            case LIST: list = si.list; break;
+            case OBJECT: objval = si.objval; break;
         }
         return *this;
     }
-    bool compareTo(StackItem& si) {
+    bool lessThan(StackItem& si) {
         switch (si.type) {
             case INTEGER: {
                 switch (type) {
@@ -149,10 +190,10 @@ struct StackItem {
             } break;
             case STRING: {
             switch (type) {
-                    case INTEGER: return -1;
-                    case NUMBER: return  -1;
-                    case BOOLEAN: return -1;
-                    case STRING: return strcmp(strval->data(), si.strval->data()) < 0;
+                    case INTEGER: return false;
+                    case NUMBER: return  false;
+                    case BOOLEAN: return false;
+                    case STRING: return strcmp(objval->strval->data(), si.objval->strval->data()) < 0;
                 }
             } break;
         }
@@ -162,7 +203,7 @@ struct StackItem {
         if (rhs.type == STRING) {
             type = STRING;
             string str = toString() + rhs.toString();
-            strval = new string(str);
+            objval->strval = new string(str);
         } else {
             double v = rhs.type == INTEGER ? rhs.intval:rhs.numval;
             switch (type) {
@@ -176,7 +217,7 @@ struct StackItem {
                     boolval += v;
                 } break;
                 case STRING: {
-                    strval->append(rhs.toString());
+                    objval->strval->append(rhs.toString());
                 } break;
             }
         }
@@ -248,6 +289,14 @@ struct StackItem {
         return *this;
     }
 };
+
+string listToString(deque<StackItem>* list) {
+        string str = "[";
+        for (auto m : *list) {
+            str += m.toString() + " ";
+        }
+        return str + "]";
+}
 
 class ConstPool {
     private:

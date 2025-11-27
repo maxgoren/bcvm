@@ -74,13 +74,15 @@ class FileStringBuffer : public CharBuffer {
                 getline(gfile, buff);
                 lines.push_back(buff);
             }
+            line_pos = 0;
+            str_pos = 0;
         }
     public:
         FileStringBuffer() {
-            line_pos = 0;
-            str_pos = 0;
-            start = 0;
-            line_start = 0;
+            line_pos = -1;
+            str_pos = -1;
+            start = -1;
+            line_start = -1;
         }
         ~FileStringBuffer() {
 
@@ -102,7 +104,7 @@ class FileStringBuffer : public CharBuffer {
             return slice;
         }
         void advance() {
-            if (line_pos < lines.size()) {
+            if (line_pos != -1 && line_pos < lines.size()) {
                 if (str_pos < lines[line_pos].size()) {
                     str_pos++;
                 } else {
@@ -125,15 +127,17 @@ class FileStringBuffer : public CharBuffer {
             }
         }
         char get() {
+            if (line_pos == -1)
+                return 0;
             return lines[line_pos][str_pos];
         }
         bool done() {
+            if (line_pos == -1)
+                return true;
             return line_pos == lines.size()-1 && str_pos == lines[line_pos].size();
         }
         void readFile(string fname) {
             read(fname);
-            line_pos = 0;
-            str_pos = 0;
         }
 };
 

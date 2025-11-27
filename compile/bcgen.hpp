@@ -10,6 +10,8 @@ using namespace std;
 //{ fn ok() { println "hi"; }; ok(); }
 
 
+const int GLOBAL_SCOPE = -1;
+
 class  ByteCodeGenerator {
     private:
         vector<Instruction> code;
@@ -49,7 +51,7 @@ class  ByteCodeGenerator {
             if (n->token.getSymbol() == TK_ASSIGN) {
                 genCode(n->right, false);
                 genCode(n->left, true);
-                emit(Instruction(symTable.depth() == -1 ? stglobal:stlocal, symTable.depth()));
+                emit(Instruction(symTable.depth() == GLOBAL_SCOPE ? stglobal:stlocal, symTable.depth()));
             } else {
                 genCode(n->left,  false);
                 genCode(n->right, false);
@@ -73,16 +75,20 @@ class  ByteCodeGenerator {
         void emitLoad(astnode* n, bool needLvalue) {
             SymbolTableEntry item = lookup(n->token.getString());
             if (needLvalue) {
-                if (item.depth == -1) {
+                if (item.depth == GLOBAL_SCOPE) {
                     emit(Instruction(ldglobaladdr, item.addr, item.depth));
                 } else {
-                    emit(Instruction(ldlocaladdr, item.addr, symTable.depth() - item.depth));
+                    emit(Instruction(ldlocaladdr, item.addr, item.depth));
                 }
             } else {
-                if (item.depth == -1) {
+                if (item.depth == GLOBAL_SCOPE) {
                     emit(Instruction(ldglobal, item.addr, item.depth));
                 } else {
-                    emit(Instruction(ldlocal, item.addr, symTable.depth() - item.depth));
+                    if (item.depth > 1) {
+                        emit(Instruction(ldupval, item.addr, item.depth));
+                    } else {
+                        emit(Instruction(ldlocal, item.addr, item.depth));
+                    }
                 }
             }
         }
@@ -159,7 +165,7 @@ class  ByteCodeGenerator {
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
-            emitStoreFuncInEnvironment(name);
+            emitStoreFuncInEnvironment(name, true);
         }
         void emitFunctionCall(astnode* n) {
             SymbolTableEntry fn_info = functionInfo(n->left->token.getString());
@@ -167,9 +173,8 @@ class  ByteCodeGenerator {
             for (auto x = n->right; x != nullptr; x = x->next)
                 argsCount++;
             genExpression(n->left, false);
-            emit(Instruction(call, fn_info.constPoolIndex, argsCount, fn_info.addr));
             genCode(n->right, false);
-            emit(Instruction(entfun, fn_info.constPoolIndex, argsCount));
+            emit(Instruction(call, fn_info.constPoolIndex, argsCount));
         }
         void emitListConstructor(astnode* n) {
             emit(Instruction(ldconst, symTable.getConstPool().insert(new deque<StackItem>())));
@@ -203,12 +208,14 @@ class  ByteCodeGenerator {
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
-            emitStoreFuncInEnvironment(name);            
+            emitStoreFuncInEnvironment(name, false);            
         }
-        void emitStoreFuncInEnvironment(string name) {
+        void emitStoreFuncInEnvironment(string name, bool isLambda) {
             SymbolTableEntry fn_info = symTable.lookup(name);
             emit(Instruction(ldconst, symTable.getConstPool().get(fn_info.constPoolIndex)));
-            if (fn_info.depth == -1) {
+            if (isLambda)
+                return;
+            if (fn_info.depth == GLOBAL_SCOPE) {
                 emit(Instruction(ldglobaladdr, fn_info.addr, fn_info.depth));
                 emit(Instruction(stglobal, fn_info.addr));
             } else {

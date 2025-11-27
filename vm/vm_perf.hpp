@@ -12,11 +12,9 @@ struct ActivationRecord {
     int num_locals;
     int returnAddress;
     StackItem locals[255];
-    ActivationRecord* access;
-    ActivationRecord(int ra = 0, int numArgs = 0, ActivationRecord* al = nullptr) {
+    ActivationRecord(int ra = 0, int numArgs = 0) {
         returnAddress = ra;
         num_args = numArgs;
-        access = al;
     }
 };
 
@@ -31,15 +29,22 @@ class VM {
         int ip;
         int sp;
         int fp;
+        bool inparams;
         ConstPool constPool;
         ActivationRecord callstk[MAX_CALL_STACK];
         ActivationRecord *globals;
         StackItem opstk[MAX_OP_STACK];
         ActivationRecord& peekAR() {
-            return callstk[fp];
+            return callstk[(fp-inparams)];
         }
         StackItem& top() {
             return opstk[sp];
+        }
+        void openScope(Instruction& inst) {
+            if (verbLev > 1)
+                cout<<"Opening Scope with "<<inst.operand[1].intval<<" args and "<<inst.operand[2].intval<<"locals"<<endl;
+            openBlock(inst);
+            inparams = true;
         }
         void closeScope() {
             ip = callstk[fp].returnAddress;
@@ -54,7 +59,6 @@ class VM {
                 cout<<"Leaving scope."<<endl;
         }
         void callProcedure(Instruction& inst) {
-            openBlock(inst);
             callstk[fp].returnAddress = ip;
             //cout<<"jump to addres: "<<ip<<endl;
             //cout<<"move args from stack to AR: ";
@@ -64,15 +68,11 @@ class VM {
             StackItem func = opstk[sp--];
             //cout<<"Pulled from top of stack: "<<func.toString()<<endl;
             if (inst.operand[0].intval != -1) {
-                ip = constPool.get(inst.operand[0].intval).objval->closure->func->start_ip;
+                ip = constPool.get(inst.operand[0].intval).closure->func->start_ip;
             } else {
-                if (func.type == OBJECT && func.objval->type == CLOSURE) {
-                    ip = func.objval->closure->func->start_ip;
-                } else {
-                    cout<<"Ay, imaginary playas aint been coached right..."<<endl;
-                    closeScope();
-                }
+                ip = func.closure->func->start_ip;
             }
+            inparams = false;
         }
         void storeGlobal() {
             StackItem t = opstk[sp--];
@@ -89,31 +89,31 @@ class VM {
         void loadLocal(Instruction& inst) {
             opstk[++sp] = (peekAR().locals[inst.operand[0].intval]);
             if (verbLev > 1)
-                cout<<"loaded local from "<<inst.operand[0].intval<<" of scope "<<fp<<endl;
+                cout<<"loaded local from "<<inst.operand[0].intval<<" of scope "<<(fp-(inparams?1:0))<<(inparams ? " as param":" as local")<<endl;
         } 
         void storeLocal(Instruction& inst) {
             StackItem t = opstk[sp--];
             StackItem val = opstk[sp--];
             peekAR().locals[t.intval] = val;
             if (verbLev > 1)
-                cout<<"Stored local at "<<t.intval<<" in scope "<<fp<<endl;
+                cout<<"Stored local at "<<t.intval<<" in scope "<<(fp-(inparams?1:0))<<(inparams ? " as param":" as local")<<endl;
         }
         void loadIndexed(Instruction& inst) {
             StackItem t = opstk[sp--];
-            opstk[++sp] = (opstk[sp--].objval->list->at(t.numval));
+            opstk[++sp] = (opstk[sp--].list->at(t.numval));
         }
         void indexed_store(Instruction& inst) {
             StackItem index = opstk[sp--];
             StackItem list = opstk[sp--];
-            list.objval->list->at(index.numval) = opstk[sp--];
+            list.list->at(index.numval) = opstk[sp--];
             opstk[++sp] = (list);
             opstk[++sp] = (index);
         }
         void loadConst(Instruction& inst) {
             if (inst.operand[0].type == INTEGER) {
-                opstk[++sp] = constPool.get(inst.operand[0].intval);
+                opstk[++sp] = (constPool.get(inst.operand[0].intval));
             } else {
-                opstk[++sp] = inst.operand[0];
+                opstk[++sp] = (inst.operand[0]);
             }
         }
         void branchOnFalse(Instruction& inst) {
@@ -196,12 +196,12 @@ class VM {
         void appendList() {
             StackItem item = opstk[sp--];
             if (top().type == LIST)
-                top().objval->list->push_back(item);
+                top().list->push_back(item);
         }
         void pushList() {
             StackItem item = opstk[sp--];
             if (top().type == LIST)
-                top().objval->list->push_front(item);
+                top().list->push_front(item);
         }
         void haltvm() {
             running = false;
@@ -210,7 +210,8 @@ class VM {
             switch (inst.op) {
                 case list_append: { appendList();   } break;
                 case list_push:  { pushList(); } break;
-                case list_len:  { opstk[++sp] = ((double)opstk[sp--].objval->list->size()); } break;
+                case list_len:  { opstk[++sp] = ((double)opstk[sp--].list->size()); } break;
+                case call:     { openScope(inst); } break;
                 case call:   { callProcedure(inst); } break;
                 case retfun:   { closeScope(); } break;
                 case entblk:   { openBlock(inst); } break;
@@ -253,7 +254,7 @@ class VM {
         }
         void printCallStack() {
             cout<<"Callstack: \n";
-            for (int i = fp; i >= 0; i--) {
+            for (int i = fp-1; i >= 0; i--) {
                 cout<<"\t   "<<i<<": [ ";
                 for (int j = 1; j <= 5; j++) {
                     cout<<(j)<<": "<<"{"<<callstk[i].locals[j].toString()<<"}, ";

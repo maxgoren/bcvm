@@ -121,8 +121,8 @@ class ScopingST {
             //cout<<"Open scope "<<name<<endl;
             if (st->symTable.find(name) != st->symTable.end()) {
                // cout<<"Reopening existing for "<<st->symTable[name].addr<<endl;
-                Scope* ns = constPool.get(st->symTable[name].constPoolIndex).closure->func->scope;
-                constPool.get(st->symTable[name].constPoolIndex).closure->func->start_ip = L1;
+                Scope* ns = constPool.get(st->symTable[name].constPoolIndex).objval->closure->func->scope;
+                constPool.get(st->symTable[name].constPoolIndex).objval->closure->func->start_ip = L1;
                 st = ns;
             } else {
                 Scope*  ns = new Scope;
@@ -147,6 +147,9 @@ class ScopingST {
         bool existsInScope(string name) {
             return st->symTable.find(name) != st->symTable.end();
         }
+        void addUpValue() {
+            
+        }
         SymbolTableEntry& lookup(string name) {
             Scope* x = st;
             while (x != nullptr) {
@@ -167,7 +170,7 @@ class ScopingST {
                 for (int i = 0; i < d; i++) cout<<"  ";
                 cout<<m.name<<": "<<m.addr<<", "<<m.depth<<endl;
                 if (m.type == 2) {
-                    printScope(constPool.get(m.constPoolIndex).closure->func->scope,d + 1);
+                    printScope(constPool.get(m.constPoolIndex).objval->closure->func->scope,d + 1);
                 }
             }
         }

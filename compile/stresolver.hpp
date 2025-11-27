@@ -60,6 +60,13 @@ class ScopeResolver {
                         cout<<"Error: Unknown variable name: "<<t->token.getString()<<endl;
                     } 
                 } break;
+                case LAMBDA_EXPR: {
+                    symTable->openFunctionScope(t->token.getString(), -1);
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
+                    symTable->closeScope();
+                    buildSymbolTable(t->next);
+                } break;
                 default: break;
             }
             buildExpressionST(t->left, fromLet);
