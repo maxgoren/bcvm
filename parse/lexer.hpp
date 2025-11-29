@@ -53,7 +53,7 @@ Token Lexer::nextToken() {
     if (last_match == 0) {
         return {TK_EOI};
     }
-    return Token((TKSymbol)accept[last_match], buffer->sliceFromStart(match_len));
+    return Token((TKSymbol)accept[last_match], buffer->sliceFromStart(match_len), buffer->lineNo());
 }
 
 bool Lexer::shouldSkip(char c) {

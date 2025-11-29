@@ -4,14 +4,16 @@ fn fib(let k) {
 	}
 	return fib(k-1)+fib(k-2);
 }
-fn listFibs(let k) {
-	if (k < 10) {
-		println fib(k);
-		listFibs(k+1);
-		println k;
-		return k;
-	}
-	println k;
-	return k;
+fn isEven(let m) {
+	return m % 2 == 0;
 }
-listFibs(6);
+fn cufibs(let m) {
+	if (m < 10) {
+		if (!isEven(fib(m))) {
+			println fib(m);
+		}
+		return cufibs(m+1);
+	}
+	return m;
+}
+cufibs(1);

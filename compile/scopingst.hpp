@@ -8,21 +8,28 @@ using namespace std;
 
 struct Scope;
 
+enum SymTableType {
+    LOCALVAR = 1,
+    FUNCVAR = 2
+};
+
 struct SymbolTableEntry {
     string name;
     int type;
     int addr;
     int depth;
     int constPoolIndex;
-    SymbolTableEntry(string n, int adr, int cpi, int d) : type(2), addr(adr), name(n), depth(d), constPoolIndex(cpi) { }
-    SymbolTableEntry(string n, int adr, int d) : type(1), name(n), addr(adr), depth(d), constPoolIndex(-1) { }
-    SymbolTableEntry() : type(0), addr(-1), constPoolIndex(-1) { }
+    int lineNum;
+    SymbolTableEntry(string n, int adr, int cpi, int d) : type(2), addr(adr), name(n), depth(d), constPoolIndex(cpi), lineNum(0) { }
+    SymbolTableEntry(string n, int adr, int d) : type(1), name(n), addr(adr), depth(d), constPoolIndex(-1), lineNum(0) { }
+    SymbolTableEntry() : type(0), addr(-1), constPoolIndex(-1), lineNum(0) { }
     SymbolTableEntry(const SymbolTableEntry& e) {
         name = e.name;
         type = e.type;
         addr = e.addr;
         depth = e.depth;
         constPoolIndex = e.constPoolIndex;
+        lineNum = e.lineNum;
     }
     SymbolTableEntry& operator=(const SymbolTableEntry& e) {
         if (this != &e) {
@@ -31,11 +38,12 @@ struct SymbolTableEntry {
             addr = e.addr;
             depth = e.depth;
             constPoolIndex = e.constPoolIndex;
+            lineNum == e.lineNum;
         }
         return *this;
     }
     bool operator==(const SymbolTableEntry& st) const {
-        return name == st.name && type == st.type && addr == st.addr;
+        return name == st.name && type == st.type && addr == st.addr && lineNum == st.lineNum;
     }
     bool operator!=(const SymbolTableEntry& st) const {
         return !(*this==st);
@@ -86,7 +94,6 @@ struct Scope {
     BlockScope symTable;
 };
 
-//{ fn ok() { println "hi"; } ok(); }
 class ScopingST {
     private:
         Scope* st;
@@ -94,12 +101,13 @@ class ScopingST {
         SymbolTableEntry nfSentinel;
         int nextAddr() {
             int na = st->symTable.size()+1;
-            //cout<<"Generated: "<<na<<" as next address."<<endl;
             return na;
         }
         int depth(Scope* s) {
-            if (s->enclosing == nullptr)
+            if (s->enclosing == nullptr) {
+                cout<<"Rnnnt."<<endl;
                 return -1;
+            }
             auto x = s;
             int d = 0;
             while (x != nullptr) {
@@ -118,9 +126,7 @@ class ScopingST {
             return constPool;
         }
         void openFunctionScope(string name, int L1) {
-            //cout<<"Open scope "<<name<<endl;
             if (st->symTable.find(name) != st->symTable.end()) {
-               // cout<<"Reopening existing for "<<st->symTable[name].addr<<endl;
                 Scope* ns = constPool.get(st->symTable[name].constPoolIndex).objval->closure->func->scope;
                 constPool.get(st->symTable[name].constPoolIndex).objval->closure->func->start_ip = L1;
                 st = ns;
@@ -128,16 +134,14 @@ class ScopingST {
                 Scope*  ns = new Scope;
                 ns->enclosing = st;
                 Function* f = makeFunction(name, L1, ns);
-                int idx = constPool.insert(new Closure(f));
-                int addr = nextAddr();
-               // cout<<"Adding to enclosing at "<<addr<<endl;;
-                st->symTable.insert(name, SymbolTableEntry(name, addr, idx, depth(ns)));
+                int constIdx = constPool.insert(new Closure(f));
+                int envAddr = nextAddr();
+                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, depth(ns)));
                 st = ns;
             }
         }
         void closeScope() {
             if (st->enclosing != nullptr) {
-                //cout<<"Closing scope"<<endl;
                 st = st->enclosing;
             }
         }
@@ -147,10 +151,7 @@ class ScopingST {
         bool existsInScope(string name) {
             return st->symTable.find(name) != st->symTable.end();
         }
-        void addUpValue() {
-            
-        }
-        SymbolTableEntry& lookup(string name) {
+        SymbolTableEntry& lookup(string name, int lineNum) {
             Scope* x = st;
             while (x != nullptr) {
                 if (x->symTable.find(name) != x->symTable.end())

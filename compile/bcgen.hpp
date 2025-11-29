@@ -1,5 +1,7 @@
 #ifndef bytecodecompiler_hpp
 #define bytecodecompiler_hpp
+#include <iomanip>
+#include <unordered_map>
 #include "../parse/ast.hpp"
 #include "../vm/instruction.hpp"
 #include "scopingst.hpp"
@@ -11,6 +13,115 @@ using namespace std;
 
 
 const int GLOBAL_SCOPE = -1;
+
+class ResolveLocals {
+    private:
+        int scope;
+        vector<unordered_map<string, bool>> scopes;
+        void openScope() {
+            scopes.push_back(unordered_map<string,bool>());
+        }
+        void closeScope() {
+            scopes.pop_back();
+        }
+        void declareName(string name) {
+            if (scopes.empty())
+                return;
+            if (scopes.back().find(name) != scopes.back().end()) {
+                cout<<"A variable with the name "<<name<<" has already been declared."<<endl;
+            }
+            scopes.back().insert(make_pair(name, false));
+        }
+        void defineName(string name) {
+            if (scopes.empty())
+                return;
+            scopes.back().at(name) = true;
+        }
+        void resolveName(string name, astnode* t) {
+            for (int i = scopes.size() - 1; i >= 0; i--) {
+                if (scopes[i].find(name) != scopes[i].end()) {
+                    t->token.setScopeLevel(scopes.size() - 1 - i);
+                    return;
+                }
+            }
+            t->token.setScopeLevel(GLOBAL_SCOPE);
+        }
+        void resolveStatement(astnode* node) {
+            switch (node->stmt) {
+                case IF_STMT: {
+                    resolve(node->left);
+                    resolve(node->right);
+                } break;
+                case ELSE_STMT: {
+                    resolve(node->left);
+                    resolve(node->right);
+                } break;
+                case LET_STMT: {
+                    auto x = node->left;
+                    while (x != nullptr) {
+                        if (x->kind == EXPRNODE && x->expr == ID_EXPR)
+                            break;
+                        x = x->left;
+                    }
+                    declareName(x->token.getString());
+                    resolve(node->right);
+                    defineName(x->token.getString());
+                } break;
+                case RETURN_STMT: {
+                    resolve(node->left);
+                } break;
+                case PRINT_STMT: {
+                    resolve(node->left);
+                } break;
+                case WHILE_STMT: {
+                    resolve(node->left);
+                    resolve(node->right);
+                } break;
+                case BLOCK_STMT: {
+                    openScope();
+                    resolve(node->left);
+                    closeScope();
+                } break;
+                case DEF_STMT: {
+                    declareName(node->token.getString());
+                    defineName(node->token.getString());
+                    openScope();
+                    for (auto it = node->left; it != nullptr; it = it->next) {
+                        declareName(it->left->token.getString());
+                        defineName(it->left->token.getString());
+                    }
+                    resolve(node->right);
+                    closeScope();
+                } break;
+            }
+        }
+        void resolveExpression(astnode* node) {
+            switch (node->expr) {
+                case ID_EXPR: resolveName(node->token.getString(), node); break;
+                case FUNC_EXPR: {
+                    resolveName(node->left->token.getString(), node->left); 
+                    for (auto it = node->right; it != nullptr; it = it->next)
+                        resolve(it);
+                    return;   
+                } break;
+                default:
+                    break;
+            }
+            resolve(node->left);
+            resolve(node->right);
+        }
+    public:
+        ResolveLocals() {
+
+        }
+        void resolve(astnode* node) {
+            if (node == nullptr)
+                return;
+            if (node->kind == STMTNODE) resolveStatement(node);
+            else resolveExpression(node);
+            resolve(node->next);
+        }
+};
 
 class  ByteCodeGenerator {
     private:
@@ -29,8 +140,8 @@ class  ByteCodeGenerator {
         int scopeLevel() {
             return symTable.depth();
         }
-        SymbolTableEntry& lookup(string varname) {
-            return symTable.lookup(varname);
+        SymbolTableEntry& lookup(string varname, int ln) {
+            return symTable.lookup(varname, ln);
         }
         void emit(Instruction inst) {
             code[cpos++] = inst;
@@ -49,10 +160,12 @@ class  ByteCodeGenerator {
         }
         void emitBinaryOperator(astnode* n) {
             if (n->token.getSymbol() == TK_ASSIGN) {
+                cout<<"Compiling Assignment: "<<endl;
                 genCode(n->right, false);
                 genCode(n->left, true);
-                emit(Instruction(symTable.depth() == GLOBAL_SCOPE ? stglobal:stlocal, symTable.depth()));
+                emit(Instruction(symTable.depth() == GLOBAL_SCOPE ? stglobal:stlocal, symTable.depth()-symTable.lookup(n->left->token.getString(), n->left->token.lineNumber()).depth));
             } else {
+                cout<<"Compiling BinOp: "<<n->token.getString()<<endl;
                 genCode(n->left,  false);
                 genCode(n->right, false);
                 switch (n->token.getSymbol()) {
@@ -72,24 +185,27 @@ class  ByteCodeGenerator {
             genCode(n->left, false);
             emit(Instruction(unop, VM_NEG));
         }
-        void emitLoad(astnode* n, bool needLvalue) {
-            SymbolTableEntry item = lookup(n->token.getString());
-            if (needLvalue) {
-                if (item.depth == GLOBAL_SCOPE) {
-                    emit(Instruction(ldglobaladdr, item.addr, item.depth));
-                } else {
-                    emit(Instruction(ldlocaladdr, item.addr, item.depth));
-                }
+        void emitLoadAddress(SymbolTableEntry& item, astnode* n) {
+            if (item.depth == GLOBAL_SCOPE) {
+                emit(Instruction(ldglobaladdr, item.addr));
             } else {
-                if (item.depth == GLOBAL_SCOPE) {
-                    emit(Instruction(ldglobal, item.addr, item.depth));
-                } else {
-                    if (item.depth > 1) {
-                        emit(Instruction(ldupval, item.addr, item.depth));
-                    } else {
-                        emit(Instruction(ldlocal, item.addr, item.depth));
-                    }
-                }
+                emit(Instruction(ldlocaladdr, item.addr));
+            }
+        }
+        void emitLoad(astnode* n, bool needLvalue) {
+            cout<<"Compiling ID expression: ";
+            SymbolTableEntry item = lookup(n->token.getString(), n->token.lineNumber());
+            cout<<"name: "<<item.name<<", address: "<<item.addr<<", ST level: "<<item.depth<<", ";
+            cout<<"Token: "<<n->token.getString()<<", ast lex depth: "<<n->token.scopeLevel()<<endl;
+            if (needLvalue) {
+                emitLoadAddress(item, n);
+            } else if (item.addr == GLOBAL_SCOPE) {
+                emit(Instruction(ldglobal, item.addr, 0));
+            } else if (n->token.scopeLevel() == 0) {
+                emit(Instruction(ldlocal, item.addr, abs(n->token.scopeLevel())));
+            } else if (abs(n->token.scopeLevel()) > 0) {
+                emit(Instruction(ldupval, item.addr, abs(n->token.scopeLevel())));
+                cout<<"\n =[AS UPVAL THO]=\n";
             }
         }
         void emitListAccess(astnode* n, bool isLvalue) {
@@ -128,10 +244,12 @@ class  ByteCodeGenerator {
             emit(Instruction(retfun));
         }
         void emitPrint(astnode* n) {
+            cout<<"Compiling Print Statement: "<<endl;
             genCode(n->left, false); 
             emit(Instruction(print));
         }
         void emitConstant(astnode* n) {
+            cout<<"Compiling Constant: "<<n->token.getString()<<endl;
             switch (n->token.getSymbol()) {
                 case TK_NUM:    {
                     int idx = symTable.getConstPool().insert(StackItem(stod(n->token.getString())));
@@ -165,16 +283,17 @@ class  ByteCodeGenerator {
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
-            emitStoreFuncInEnvironment(name, true);
+            emitStoreFuncInEnvironment(n, true);
         }
         void emitFunctionCall(astnode* n) {
-            SymbolTableEntry fn_info = functionInfo(n->left->token.getString());
+            cout<<"Compiling Function Call."<<endl;
+            SymbolTableEntry fn_info = symTable.lookup(n->left->token.getString(), n->left->token.lineNumber());
             int argsCount = 0;
             for (auto x = n->right; x != nullptr; x = x->next)
                 argsCount++;
             genExpression(n->left, false);
             genCode(n->right, false);
-            emit(Instruction(call, fn_info.constPoolIndex, argsCount));
+            emit(Instruction(call, fn_info.constPoolIndex, argsCount, fn_info.depth));
         }
         void emitListConstructor(astnode* n) {
             emit(Instruction(ldconst, symTable.getConstPool().insert(new deque<StackItem>())));
@@ -192,6 +311,7 @@ class  ByteCodeGenerator {
             emit(Instruction(retblk));
         }
         void emitFuncDef(astnode* n) {
+            cout<<"Compiling Function Definition: ";
             int numArgs = 0;
             for (astnode* x = n->left; x != nullptr; x = x->next)
                 numArgs++;
@@ -208,10 +328,11 @@ class  ByteCodeGenerator {
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
-            emitStoreFuncInEnvironment(name, false);            
+            emitStoreFuncInEnvironment(n, false);            
         }
-        void emitStoreFuncInEnvironment(string name, bool isLambda) {
-            SymbolTableEntry fn_info = symTable.lookup(name);
+        void emitStoreFuncInEnvironment(astnode* n, bool isLambda) {
+            string name = n->token.getString();
+            SymbolTableEntry fn_info = symTable.lookup(name, n->token.lineNumber());
             emit(Instruction(ldconst, symTable.getConstPool().get(fn_info.constPoolIndex)));
             if (isLambda)
                 return;
@@ -219,7 +340,7 @@ class  ByteCodeGenerator {
                 emit(Instruction(ldglobaladdr, fn_info.addr, fn_info.depth));
                 emit(Instruction(stglobal, fn_info.addr));
             } else {
-                emit(Instruction(ldlocaladdr, fn_info.addr, fn_info.depth));
+                emit(Instruction(ldlocaladdr, fn_info.addr, symTable.depth() - fn_info.depth));
                 emit(Instruction(stlocal, fn_info.addr));
             }
         }
@@ -262,10 +383,6 @@ class  ByteCodeGenerator {
                 restore();
             }
         }
-        SymbolTableEntry functionInfo(string name) {
-            SymbolTableEntry item = symTable.lookup(name);
-            return item;
-        }
         void genStatement(astnode* n, bool needLvalue) {
             switch (n->stmt) {
                 case DEF_STMT:    { emitFuncDef(n); } break;
@@ -305,6 +422,12 @@ class  ByteCodeGenerator {
             }
         }
         ScopeResolver sr;
+        void printOperand(StackItem& operand) {
+            switch (operand.type) {
+                case INTEGER: cout<<to_string(operand.intval); break;
+                default: cout<<"."; break;
+            }
+        }
     public:
         ByteCodeGenerator() {
             code = vector<Instruction>(255, Instruction(halt, 0));
@@ -314,15 +437,22 @@ class  ByteCodeGenerator {
         ConstPool& getConstPool() {
             return symTable.getConstPool();
         }
+        ResolveLocals rl;
         vector<Instruction> compile(astnode* n) {
             cout<<"Build Symbol Table: "<<endl;
             sr.buildSymbolTable(n, &symTable);
+            rl.resolve(n);
             cout<<"Compiling..."<<endl;
             genCode(n, false);
             cout<<"Compiled Bytecode: "<<endl;
             int addr = 0;
             for (auto m : code) {
-                cout<<addr<<": [0x0"<<m.op<<"("<<instrStr[m.op]<<"), "<<(m.operand[0].toString() == "(nil)" ? to_string(m.operand[0].intval):m.operand[0].toString())<<"]"<<endl;
+                cout<<setw(2)<<addr<<": [0x"<<setw(2)<<m.op<<" "<<instrStr[m.op]<<" ";
+                printOperand(m.operand[0]);
+                cout<<" ";
+                printOperand(m.operand[1]);
+                if (m.op == call) cout<<" "<<m.operand[2].intval;
+                cout<<" ]"<<endl;
                 if (m.op == halt)
                     break;
                 addr++;

@@ -15,6 +15,7 @@ class CharBuffer {
         virtual char get() = 0;
         virtual int markStart() = 0;
         virtual string sliceFromStart(int matchlen) = 0;
+        virtual int lineNo() = 0;
 };
 
 
@@ -23,9 +24,10 @@ class StringBuffer : public CharBuffer {
         string buff;
         int spos;
         int start;
+        int ln;
     public:
         StringBuffer() {
-
+            ln = 0;
         }
         ~StringBuffer() {
 
@@ -40,11 +42,14 @@ class StringBuffer : public CharBuffer {
         }
         string sliceFromStart(int matchlen) {
             string slice;
+            if (buff[start+matchlen] == '"') matchlen-=2;
+            if (buff[start] == '"') start++;
             for (int i = start; i <= start+matchlen; i++)
                 slice.push_back(buff[i]);
             return slice;
         }
         char get() {
+            if (buff[spos] == '\n') ln++;
             return buff[spos];
         }
         bool done() {
@@ -52,6 +57,9 @@ class StringBuffer : public CharBuffer {
         }
         void advance() {
             spos++;
+        }
+        int lineNo() {
+            return ln;
         }
 };
 
@@ -138,6 +146,9 @@ class FileStringBuffer : public CharBuffer {
         }
         void readFile(string fname) {
             read(fname);
+        }
+        int lineNo() {
+            return line_pos;
         }
 };
 

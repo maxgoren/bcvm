@@ -54,9 +54,13 @@ class ScopeResolver {
                 return;
             switch (t->expr) {
                 case ID_EXPR: {
-                    if (fromLet && symTable->existsInScope(t->token.getString()) == false) {
-                        symTable->insert(t->token.getString());
-                    } else if (symTable->lookup(t->token.getString()).addr == -1) {    
+                    if (fromLet) {
+                        if (symTable->existsInScope(t->token.getString()) == false) {
+                            symTable->insert(t->token.getString());
+                        } else {
+                            cout<<"A variable with the name "<<t->token.getString()<<" has already been declared in this scope."<<endl;
+                        }
+                    } else if (symTable->lookup(t->token.getString(), t->token.lineNumber()).addr == -1) {    
                         cout<<"Error: Unknown variable name: "<<t->token.getString()<<endl;
                     } 
                 } break;

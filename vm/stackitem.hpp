@@ -193,17 +193,19 @@ struct StackItem {
                     case INTEGER: return false;
                     case NUMBER: return  false;
                     case BOOLEAN: return false;
-                    case STRING: return strcmp(objval->strval->data(), si.objval->strval->data()) < 0;
+                    case OBJECT: {
+                        if (objval->type == STRING && si.objval->type == STRING)
+                            return strcmp(objval->strval->data(), si.objval->strval->data()) < 0;
+                    }
                 }
             } break;
         }
         return false;
     }
     StackItem& add(StackItem& rhs) {
-        if (rhs.type == STRING) {
-            type = STRING;
-            string str = toString() + rhs.toString();
-            objval->strval = new string(str);
+        if (type == OBJECT || rhs.type == OBJECT) {
+            type = OBJECT;
+            objval = new GCItem(new string(this->toString() + rhs.toString()));
         } else {
             double v = rhs.type == INTEGER ? rhs.intval:rhs.numval;
             switch (type) {
