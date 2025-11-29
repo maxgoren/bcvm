@@ -1,0 +1,15 @@
+fn p() {
+    let x := 0;
+    fn q() {
+        fn r() {
+            x := 2;
+        }
+        println x;
+        r();
+        println x;
+    }
+    println x;
+    q();
+    println x;
+}
+p();

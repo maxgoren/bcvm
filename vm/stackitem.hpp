@@ -204,8 +204,9 @@ struct StackItem {
     }
     StackItem& add(StackItem& rhs) {
         if (type == OBJECT || rhs.type == OBJECT) {
-            type = OBJECT;
+            cout<<toString()<<" + "<<rhs.toString()<<"? "<<endl;
             objval = new GCItem(new string(this->toString() + rhs.toString()));
+            type == OBJECT;
         } else {
             double v = rhs.type == INTEGER ? rhs.intval:rhs.numval;
             switch (type) {

@@ -4,6 +4,7 @@ fn fib(let k) {
 	}
 	return fib(k-1)+fib(k-2);
 }
+println fib(6);
 fn isEven(let m) {
 	return m % 2 == 0;
 }
@@ -14,6 +15,5 @@ fn cufibs(let m) {
 		}
 		return cufibs(m+1);
 	}
-	return m;
 }
 cufibs(1);

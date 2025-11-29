@@ -9,17 +9,17 @@ enum VMInstruction {
     ldlocal,ldupval,
     ldlocaladdr, ldglobaladdr, 
     stglobal, stlocal, 
-    stfield,stupval,
+    stupval, stfield,
     call, retfun, 
     entblk, retblk,
     jump, brf, 
-    binop, unop,
+    binop, unop, mkclosure,
     list_append, list_push, list_len,
     print, halt
 };
 
 string instrStr[] = { "defun", "label", "ldfield", "ldconstpl", "ldconst", "ldglobal", "ldlocal", "ldupval", "ldlocaladdr", "ldglobaladdr",
-                     "stglobal", "stlocal", "stupval", "stfield", "call", "retfun", "entblk", "retblk", "jump", "brf", "binop", "unop", 
+                     "stglobal", "stlocal", "stupval", "stfield", "call", "retfun", "entblk", "retblk", "jump", "brf", "binop", "unop", "mkclosure",
                      "append", "push", "list_len", "print", "halt"};
 
 enum VMOperators {

@@ -5,14 +5,113 @@
 #include "../parse/ast.hpp"
 #include "../vm/instruction.hpp"
 #include "scopingst.hpp"
-#include "stresolver.hpp"
 using namespace std;
 
 
 //{ fn ok() { println "hi"; }; ok(); }
 
 
-const int GLOBAL_SCOPE = -1;
+const int GLOBAL_SCOPE = -56;
+
+class STBuilder {
+    private:
+        ScopingST* symTable;
+        string nameBlock() {
+            static int bnum = 0;
+            return "Block" + to_string(bnum++);
+        }
+        string nameLambda() {
+            static int n = 0;
+            return "lambdafunc" + to_string(n++);
+        }
+        void buildStatementST(astnode* t) {
+            if (t == nullptr)
+                return;
+            switch (t->stmt) {
+                case DEF_STMT: {
+                    symTable->openFunctionScope(t->token.getString(), -1);
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
+                    symTable->closeScope();
+                    buildSymbolTable(t->next);
+                    return;
+                }  break;
+                case BLOCK_STMT: {
+                    t->token.setString(nameBlock());
+                    symTable->openFunctionScope(t->token.getString(), -1);
+                    buildSymbolTable(t->left);
+                    symTable->closeScope();
+                    buildSymbolTable(t->next);
+                    return;
+                } break;
+                case LET_STMT: {
+                    switch (t->left->expr) {
+                        case ID_EXPR: buildExpressionST(t->left, true); break;
+                        case BIN_EXPR: {
+                            buildExpressionST(t->left, true);
+                            buildExpressionST(t->right, false);
+                        } break;          
+                    }
+                    buildSymbolTable(t->next);
+                    return;
+                } break;
+                default: 
+                break;
+            }
+            buildSymbolTable(t->left);
+            buildSymbolTable(t->right);
+            buildSymbolTable(t->next);
+        } 
+        void buildExpressionST(astnode* t, bool fromLet) {
+            if (t == nullptr)
+                return;
+            switch (t->expr) {
+                case ID_EXPR: {
+                    if (fromLet) {
+                        if (symTable->existsInScope(t->token.getString()) == false) {
+                            symTable->insert(t->token.getString());
+                        } else {
+                            cout<<"A variable with the name "<<t->token.getString()<<" has already been declared in this scope."<<endl;
+                        }
+                    } else if (symTable->lookup(t->token.getString(), t->token.lineNumber()).addr == -1) {    
+                        cout<<"Error: Unknown variable name: "<<t->token.getString()<<endl;
+                    } 
+                } break;
+                case LAMBDA_EXPR: {
+                    string name = nameLambda();
+                    t->token.setString(name);
+                    symTable->openFunctionScope(t->token.getString(), -1);
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
+                    symTable->closeScope();
+                    buildSymbolTable(t->next);
+                    return;
+                } break;
+                default: break;
+            }
+            buildExpressionST(t->left, fromLet);
+            buildExpressionST(t->right, fromLet);
+            buildSymbolTable(t->next);
+        }
+        void buildSymbolTable(astnode* t) {
+            if (t != nullptr) {
+                switch (t->kind) {
+                    case STMTNODE: {
+                        buildStatementST(t);
+                    } break;
+                    case EXPRNODE: {
+                        buildExpressionST(t, false);
+                    } break;
+                }
+            }
+        }
+    public:
+        STBuilder() { }
+        void buildSymbolTable(astnode* ast, ScopingST* st) {
+            symTable = st;
+            buildSymbolTable(ast);
+        }
+};
 
 class ResolveLocals {
     private:
@@ -20,9 +119,11 @@ class ResolveLocals {
         vector<unordered_map<string, bool>> scopes;
         void openScope() {
             scopes.push_back(unordered_map<string,bool>());
+            cout<<"Open new scope"<<endl;
         }
         void closeScope() {
             scopes.pop_back();
+            cout<<"Close scope."<<endl;
         }
         void declareName(string name) {
             if (scopes.empty())
@@ -41,9 +142,11 @@ class ResolveLocals {
             for (int i = scopes.size() - 1; i >= 0; i--) {
                 if (scopes[i].find(name) != scopes[i].end()) {
                     t->token.setScopeLevel(scopes.size() - 1 - i);
+                    cout << "Variable " << name << " resolved to scope level " << t->token.scopeLevel() <<" ("<<(scopes.size()-1-i)<<")"<<endl;
                     return;
                 }
             }
+            cout << "Variable " << name << " resolved to scope level as global"<< endl;
             t->token.setScopeLevel(GLOBAL_SCOPE);
         }
         void resolveStatement(astnode* node) {
@@ -104,6 +207,15 @@ class ResolveLocals {
                         resolve(it);
                     return;   
                 } break;
+                case LAMBDA_EXPR: {
+                    openScope();
+                    for (auto it = node->left; it != nullptr; it = it->next) {
+                        resolve(it);
+                    }
+                    resolve(node->right);
+                    closeScope();
+                    return;
+                }break;
                 default:
                     break;
             }
@@ -133,10 +245,6 @@ class  ByteCodeGenerator {
             static int next = 0;
             return "L" + to_string(next++);
         }
-        string nameLambda() {
-            static int n = 0;
-            return "lambdafunc" + to_string(n++);
-        }
         int scopeLevel() {
             return symTable.depth();
         }
@@ -163,7 +271,7 @@ class  ByteCodeGenerator {
                 cout<<"Compiling Assignment: "<<endl;
                 genCode(n->right, false);
                 genCode(n->left, true);
-                emit(Instruction(symTable.depth() == GLOBAL_SCOPE ? stglobal:stlocal, symTable.depth()-symTable.lookup(n->left->token.getString(), n->left->token.lineNumber()).depth));
+                emitStore(n);
             } else {
                 cout<<"Compiling BinOp: "<<n->token.getString()<<endl;
                 genCode(n->left,  false);
@@ -195,18 +303,34 @@ class  ByteCodeGenerator {
         void emitLoad(astnode* n, bool needLvalue) {
             cout<<"Compiling ID expression: ";
             SymbolTableEntry item = lookup(n->token.getString(), n->token.lineNumber());
-            cout<<"name: "<<item.name<<", address: "<<item.addr<<", ST level: "<<item.depth<<", ";
-            cout<<"Token: "<<n->token.getString()<<", ast lex depth: "<<n->token.scopeLevel()<<endl;
+            int depth = n->token.scopeLevel();
             if (needLvalue) {
                 emitLoadAddress(item, n);
-            } else if (item.addr == GLOBAL_SCOPE) {
-                emit(Instruction(ldglobal, item.addr, 0));
-            } else if (n->token.scopeLevel() == 0) {
-                emit(Instruction(ldlocal, item.addr, abs(n->token.scopeLevel())));
-            } else if (abs(n->token.scopeLevel()) > 0) {
-                emit(Instruction(ldupval, item.addr, abs(n->token.scopeLevel())));
-                cout<<"\n =[AS UPVAL THO]=\n";
+            } else {
+                if (item.depth == GLOBAL_SCOPE || depth == GLOBAL_SCOPE) {
+                    emit(Instruction(ldglobal, item.addr));
+                    cout << "LDGLOBAL: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << n->token.scopeLevel()<< endl;
+                } else if (depth == 0) {
+                    emit(Instruction(ldlocal, item.addr, 0));
+                    cout << "LDLOCAL: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << n->token.scopeLevel()<< endl;
+                } else {
+                    emit(Instruction(ldupval, item.addr, depth));
+                    cout<<"\n [AS UPVAL THO]";
+                    cout << "LDUPVAL: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << n->token.scopeLevel()<< endl;
+                }
             }
+        }
+        void emitStore(astnode* node) {
+            SymbolTableEntry item = symTable.lookup(node->left->token.getString(), 1);
+            int depth = node->left->token.scopeLevel();
+            if (item.depth == GLOBAL_SCOPE) {
+                emit(Instruction(stglobal, item.addr));
+            } else if (depth == 0) {
+                emit(Instruction(stlocal, item.addr));
+            } else {
+                emit(Instruction(stupval, depth, depth));
+            }
+
         }
         void emitListAccess(astnode* n, bool isLvalue) {
             genCode(n->left, false);
@@ -271,8 +395,7 @@ class  ByteCodeGenerator {
                 numArgs++;
             int L1 = skipEmit(0);
             skipEmit(1);
-            string name = nameLambda();
-            n->token.setString(name);
+            string name = n->token.getString();
             emit(Instruction(defun, name, numArgs, 0));
             symTable.openFunctionScope(name, L1+1);
             genCode(n->right, false);
@@ -293,7 +416,7 @@ class  ByteCodeGenerator {
                 argsCount++;
             genExpression(n->left, false);
             genCode(n->right, false);
-            emit(Instruction(call, fn_info.constPoolIndex, argsCount, fn_info.depth));
+            emit(Instruction(call, fn_info.constPoolIndex, argsCount, n->left->token.scopeLevel()));
         }
         void emitListConstructor(astnode* n) {
             emit(Instruction(ldconst, symTable.getConstPool().insert(new deque<StackItem>())));
@@ -311,7 +434,7 @@ class  ByteCodeGenerator {
             emit(Instruction(retblk));
         }
         void emitFuncDef(astnode* n) {
-            cout<<"Compiling Function Definition: ";
+            cout<<"Compiling Function Definition: "<<n->token.getString()<<endl;
             int numArgs = 0;
             for (astnode* x = n->left; x != nullptr; x = x->next)
                 numArgs++;
@@ -333,7 +456,7 @@ class  ByteCodeGenerator {
         void emitStoreFuncInEnvironment(astnode* n, bool isLambda) {
             string name = n->token.getString();
             SymbolTableEntry fn_info = symTable.lookup(name, n->token.lineNumber());
-            emit(Instruction(ldconst, symTable.getConstPool().get(fn_info.constPoolIndex)));
+            emit(Instruction(mkclosure, fn_info.constPoolIndex, fn_info.depth));
             if (isLambda)
                 return;
             if (fn_info.depth == GLOBAL_SCOPE) {
@@ -388,23 +511,31 @@ class  ByteCodeGenerator {
                 case DEF_STMT:    { emitFuncDef(n); } break;
                 case BLOCK_STMT:  { emitBlock(n);   } break;
                 case IF_STMT:     { defineIfStmt(n);   } break;
-                case LET_STMT:    { genCode(n->left, false);  } break;
+                case LET_STMT:    { 
+                    switch (n->left->expr) {
+                        case BIN_EXPR: emitBinaryOperator(n->left); break;
+                        case ID_EXPR: {
+                            genCode(n->right, false); 
+                            genCode(n->left, true);
+                        } break;
+                    }  
+                } break;
                 case PRINT_STMT:  { emitPrint(n);      } break;
                 case RETURN_STMT: { emitReturn(n);     } break;
                 case WHILE_STMT:  { emitWhile(n);      } break;
-                case EXPR_STMT: { genCode(n->left, false); } break;
+                case EXPR_STMT:   { genCode(n->left, false); } break;
                 default: break;
             };
         }
         void genExpression(astnode* n, bool needLvalue) {
             switch (n->expr) {
-                case CONST_EXPR:  { emitConstant(n);  } break;
-                case ID_EXPR:     { emitLoad(n, needLvalue); } break;
-                case BIN_EXPR:    { emitBinaryOperator(n); } break;
-                case UOP_EXPR:    { emitUnaryOperator(n);  } break;
-                case LAMBDA_EXPR: { emitLambda(n);        } break;
-                case FUNC_EXPR:   { emitFunctionCall(n);   } break;
-                case LISTCON_EXPR: { emitListConstructor(n); } break;
+                case CONST_EXPR:     { emitConstant(n);  } break;
+                case ID_EXPR:        { emitLoad(n, needLvalue); } break;
+                case BIN_EXPR:       { emitBinaryOperator(n); } break;
+                case UOP_EXPR:       { emitUnaryOperator(n);  } break;
+                case LAMBDA_EXPR:    { emitLambda(n);        } break;
+                case FUNC_EXPR:      { emitFunctionCall(n);   } break;
+                case LISTCON_EXPR:   { emitListConstructor(n); } break;
                 case SUBSCRIPT_EXPR: { emitSubscript(n, needLvalue); } break;
                 case LIST_EXPR: { emitListOperation(n); } break;
                 default:
@@ -421,7 +552,7 @@ class  ByteCodeGenerator {
                 genCode(n->next, false);
             }
         }
-        ScopeResolver sr;
+        STBuilder sr;
         void printOperand(StackItem& operand) {
             switch (operand.type) {
                 case INTEGER: cout<<to_string(operand.intval); break;

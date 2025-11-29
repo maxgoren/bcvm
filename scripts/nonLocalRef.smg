@@ -1,0 +1,12 @@
+fn p() {
+    let n := 13;
+    fn q() {
+        println n;
+    }
+    fn r(let n) {
+        q();
+        println n;
+    }
+    r(2);
+}
+p();

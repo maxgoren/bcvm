@@ -7,3 +7,4 @@ fn out() {
     inn();
 }
 out();
+println x;

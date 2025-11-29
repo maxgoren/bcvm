@@ -38,24 +38,46 @@ class VM {
         ActivationRecord *callstk;
         ActivationRecord *globals;
         StackItem opstk[MAX_OP_STACK];
-        ActivationRecord* peekAR(int d) {
-            if (d == -1) return globals;
+        ActivationRecord* walkChain(int d) {
+            if (d == -56) return globals;
             auto x = callstk;
-            while (x->access != nullptr && d > 0) {
+            while (x != nullptr && d > 0) {
                 x = x->access;
                 d--;
             }
-            return x;
+            if (x == nullptr) {
+                x = globals;
+                cout<<"Wrong chain length, default to globals."<<endl;
+            } else {
+                cout << "WalkChain depth " << d << ", returns AR at ";
+                for (int i = 0; i <= 5; i++) {
+                    cout<<"{i: "<<x->locals[i].toString()<<"}";
+                }
+            }
+            cout<<endl;
+            return x ? x:globals;
         }
         StackItem& top() {
             return opstk[sp];
         }
+        void closeOver(Instruction& inst) {
+            int func_id = inst.operand[0].intval;
+            int depth = inst.operand[1].intval;
+            cout<<"Closing over "<<depth<<" defining env's"<<endl;
+            //stash current activation record as closures defining env
+            constPool.get(func_id).objval->closure->env = callstk; 
+            opstk[++sp] = constPool.get(func_id);
+        }
         void closeScope() {
+            if (callstk == nullptr) {
+                for (int i = 0; i < 8; i++)
+                    cout<<"Hey what the fuck is this?"<<endl;
+            }
             ip = callstk->returnAddress;
             popScope();
         }
         void openBlock(Instruction& inst) {
-            callstk = new ActivationRecord(ip, inst.operand[1].intval, callstk, peekAR(inst.operand[2].intval));
+            callstk = new ActivationRecord(ip, inst.operand[1].intval, callstk, walkChain(inst.operand[2].intval));
         }
         void popScope() {
             if (callstk != nullptr && callstk->control != nullptr)
@@ -64,23 +86,32 @@ class VM {
                 cout<<"Leaving scope."<<endl;
         }
         void callProcedure(Instruction& inst) {
-            openBlock(inst);
-            callstk->returnAddress = ip;
-            //cout<<"jump to addres: "<<ip<<endl;
-            //cout<<"move args from stack to AR: ";
-            for (int i = inst.operand[1].intval; i > 0; i--) {
-                callstk->locals[i] = opstk[sp--];
-            }
-            StackItem func = opstk[sp--];
-            //cout<<"Pulled from top of stack: "<<func.toString()<<endl;
-            if (inst.operand[0].intval != -1) {
-                ip = constPool.get(inst.operand[0].intval).objval->closure->func->start_ip;
-                constPool.get(inst.operand[0].intval).objval->closure->env = callstk;
+            int returnAddr = ip;
+            int numArgs = inst.operand[1].intval;
+            int lexDepth = inst.operand[2].intval;
+            int cpIdx = inst.operand[0].intval;
+            Closure* close;
+            if (cpIdx == -1) {
+                close = opstk[sp--].objval->closure;
             } else {
-                ip = func.objval->closure->func->start_ip;
-                if (func.objval->closure->env != nullptr)
-                    callstk->access = func.objval->closure->env;
+                close = constPool.get(cpIdx).objval->closure;
             }
+            ActivationRecord* staticLink;
+            if (lexDepth == -1) {
+                staticLink = globals;
+            } else if (lexDepth == 0) {
+                staticLink = callstk;
+            } else {
+                staticLink = close->env;
+            }
+            ActivationRecord* nextAR = new ActivationRecord(returnAddr, numArgs, callstk, staticLink);            
+            for (int i = numArgs; i > 0; i--) {
+                nextAR->locals[i] = opstk[sp--];
+            }
+            nextAR->access = opstk[sp--].objval->closure->env;
+            nextAR->returnAddress = returnAddr;
+            callstk = nextAR;
+            ip = close->func->start_ip;
         }
         void storeGlobal() {
             StackItem t = opstk[sp--];
@@ -92,19 +123,31 @@ class VM {
         void loadGlobal(Instruction& inst) {
             if (verbLev > 1)
                 cout<<"Load "<<globals->locals[inst.operand[0].intval].toString()<<" from "<<(inst.operand[0].intval)<<endl;
-            opstk[++sp] = (globals->locals[inst.operand[0].intval]);
+            opstk[++sp] = globals->locals[inst.operand[0].intval];
         }
         void loadLocal(Instruction& inst) {
-            opstk[++sp] = (peekAR(inst.operand[1].intval)->locals[inst.operand[0].intval]);
+            opstk[++sp] = callstk->locals[inst.operand[0].intval];
             if (verbLev > 1)
-                cout<<"loaded local: "<<opstk[sp].toString()<<"from "<<inst.operand[0].intval<<" of scope "<<(fp)<<endl;
+                cout<<"loaded local: "<<opstk[sp].toString()<<endl;
+        } 
+        void loadUpval(Instruction& inst) {
+            opstk[++sp] = walkChain(inst.operand[1].intval)->locals[inst.operand[0].intval];
+            if (verbLev > 1)
+                cout<<"loaded vpval: "<<opstk[sp].toString()<<"from "<<inst.operand[0].intval<<" of scope "<<(fp)<<endl;
         } 
         void storeLocal(Instruction& inst) {
             StackItem t = opstk[sp--];
             StackItem val = opstk[sp--];
-            peekAR(inst.operand[0].intval)->locals[t.intval] = val;
+            callstk->locals[t.intval] = val;
             if (verbLev > 1)
-                cout<<"Stored local at "<<t.intval<<" in scope "<<(fp)<<endl;
+                cout<<"Stored local at "<<t.intval<<endl;
+        }
+        void storeUpval(Instruction& inst) {
+            StackItem t = opstk[sp--];
+            StackItem val = opstk[sp--];
+            walkChain(inst.operand[0].intval)->locals[t.intval] = val;
+            if (verbLev > 1)
+                cout<<"Stored upval at "<<t.intval<<" in scope "<<(inst.operand[0].intval)<<endl;
         }
         void loadIndexed(Instruction& inst) {
             StackItem t = opstk[sp--];
@@ -230,17 +273,18 @@ class VM {
                 case print:    { printTopOfStack(); } break;
                 case halt:     { haltvm(); } break;
                 case stglobal: { storeGlobal(); } break;
-                case stupval:
+                case stupval:  { storeUpval(inst); } break;
                 case stlocal:  { storeLocal(inst); } break;
                 case stfield:  { indexed_store(inst); } break;
                 case ldconst:  { loadConst(inst); } break;
                 case ldglobal: { loadGlobal(inst); } break;
-                case ldupval: 
+                case ldupval:  { loadUpval(inst); } break;
                 case ldlocal:  { loadLocal(inst); } break;
                 case ldlocaladdr:  { opstk[++sp] = (inst.operand[0].intval); } break;
                 case ldglobaladdr: { opstk[++sp] = (inst.operand[0].intval); } break;
                 case ldfield:      { loadIndexed(inst); } break;
                 case label: { /* nop() */ } break;
+                case mkclosure: { closeOver(inst); } break;
                 default:
                     break;
             }       
@@ -273,8 +317,27 @@ class VM {
                     cout<<(j)<<": "<<"{"<<x->locals[j].toString()<<"}, ";
                 }
                 cout<<"]"<<endl;
+                if (x->access != x->control) {
+                    cout<<"\t Lexical stack: \n";
+                    int l = i;
+                    auto t = x->access;
+                    while (t != nullptr) {
+                        cout<<"\t \t  "<<l++<<": [ ";
+                        for (int j = 1; j <= 5; j++) {
+                            cout<<(j)<<": "<<"{"<<t->locals[j].toString()<<"}, ";
+                        }
+                        cout<<"]"<<endl;
+                        t = t->access;
+                    }
+                }
                 x = x->control;
+            }            
+            cout<<"Globals: \n";
+            cout<<"\t    ";
+            for (int j = 1; j <= 5; j++) {
+                cout<<(j)<<": "<<"{"<<globals->locals[j].toString()<<"}, ";
             }
+            cout<<"]"<<endl;
         }
         void init(vector<Instruction>& cp, int verbosity) {
             codePage = cp;
@@ -287,7 +350,7 @@ class VM {
             sp = 0;
             fp = 0;
             haltSentinel = Instruction(halt);
-            globals = new ActivationRecord(MAX_CALL_STACK, 0, nullptr, nullptr);
+            globals = new ActivationRecord(0, 0, nullptr, nullptr);
             callstk = globals;
         }
         void setConstPool(ConstPool& cp) {
