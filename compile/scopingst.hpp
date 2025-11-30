@@ -136,7 +136,7 @@ class ScopingST {
                 Function* f = makeFunction(name, L1, ns);
                 int constIdx = constPool.insert(new Closure(f));
                 int envAddr = nextAddr();
-                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, depth(ns)));
+                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, depth(st)+1));
                 st = ns;
             }
         }

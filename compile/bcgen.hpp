@@ -29,18 +29,22 @@ class STBuilder {
                 return;
             switch (t->stmt) {
                 case DEF_STMT: {
+                    cout<<"Open scope."<<endl;
                     symTable->openFunctionScope(t->token.getString(), -1);
                     buildSymbolTable(t->left);
                     buildSymbolTable(t->right);
                     symTable->closeScope();
+                    cout<<"Close scope."<<endl;
                     buildSymbolTable(t->next);
                     return;
                 }  break;
                 case BLOCK_STMT: {
+                    cout<<"Opening block"<<endl;
                     t->token.setString(nameBlock());
                     symTable->openFunctionScope(t->token.getString(), -1);
                     buildSymbolTable(t->left);
                     symTable->closeScope();
+                    cout<<"Close block."<<endl;
                     buildSymbolTable(t->next);
                     return;
                 } break;
@@ -93,7 +97,8 @@ class STBuilder {
                     } 
                 } break;
                 case FUNC_EXPR: {
-
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
                 } break;
                 case LAMBDA_EXPR: {
                     string name = nameLambda();
@@ -216,12 +221,16 @@ class ResolveLocals {
                     resolve(node->right);
                     closeScope();
                 } break;
+                case EXPR_STMT: {
+                    resolve(node->left);
+                } break;
             }
         }
         void resolveExpression(astnode* node) {
             switch (node->expr) {
                 case ID_EXPR: resolveName(node->token.getString(), node); break;
                 case FUNC_EXPR: {
+                    resolve(node->left);
                     resolveName(node->left->token.getString(), node->left); 
                     for (auto it = node->right; it != nullptr; it = it->next)
                         resolve(it);
@@ -242,16 +251,20 @@ class ResolveLocals {
             resolve(node->left);
             resolve(node->right);
         }
-    public:
-        ResolveLocals() {
-
-        }
         void resolve(astnode* node) {
             if (node == nullptr)
                 return;
             if (node->kind == STMTNODE) resolveStatement(node);
             else resolveExpression(node);
             resolve(node->next);
+        }
+    public:
+        ResolveLocals() {
+
+        }
+        void resolveLocals(astnode* node) {
+            cout<<"Resolving Locals."<<endl;
+            resolve(node);
         }
 };
 
@@ -327,28 +340,28 @@ class  ByteCodeGenerator {
             if (needLvalue) {
                 emitLoadAddress(item, n);
             } else {
-                if (item.depth == GLOBAL_SCOPE || depth == GLOBAL_SCOPE) {
+                if (depth == GLOBAL_SCOPE) {
                     emit(Instruction(ldglobal, item.addr));
                     cout << "LDGLOBAL: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << n->token.scopeLevel()<< endl;
                 } else if (depth == 0) {
                     emit(Instruction(ldlocal, item.addr));
-                    cout << "LDLOCAL: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << n->token.scopeLevel()<< endl;
+                    cout << "LDLOCAL: " << n->token.getString()<<", scopelevel= "<<n->token.scopeLevel() << " depth= " << n->token.scopeLevel()<< endl;
                 } else {
                     emit(Instruction(ldupval, item.addr, depth));
                     cout<<"\n [AS UPVAL THO]";
-                    cout << "LDUPVAL: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << n->token.scopeLevel()<< endl;
+                    cout << "LDUPVAL: " << n->token.getString()<<", scopelevel= "<<n->token.scopeLevel() << " depth= " << n->token.scopeLevel()<< endl;
                 }
             }
         }
         void emitStore(astnode* n) {
             SymbolTableEntry item = symTable.lookup(n->left->token.getString(), 1);
             int depth = n->left->token.scopeLevel();
-            if (item.depth == GLOBAL_SCOPE) {
+            if (depth == GLOBAL_SCOPE) {
                 emit(Instruction(stglobal, item.addr));
-                cout << "STGLOBAL: " << n->token.getString()<<"scopelevel="<<n->left->token.scopeLevel() << " depth=" << n->left->token.scopeLevel()<< endl;
+                cout << "STGLOBAL: " << n->left->token.getString()<<", scopelevel= "<<n->left->token.scopeLevel() << " depth= " << n->left->token.scopeLevel()<< endl;
             } else if (depth == 0) {
                 emit(Instruction(stlocal, item.addr));
-                cout << "STLOCAL: " << n->token.getString()<<"scopelevel="<<n->left->token.scopeLevel() << " depth=" << n->left->token.scopeLevel()<< endl;
+                cout << "STLOCAL: " << n->left->token.getString()<<", scopelevel= "<<n->left->token.scopeLevel() << " depth= " << n->left->token.scopeLevel()<< endl;
             } else {
                 emit(Instruction(stupval, item.addr, depth));
             }
@@ -594,7 +607,7 @@ class  ByteCodeGenerator {
         vector<Instruction> compile(astnode* n) {
             cout<<"Build Symbol Table: "<<endl;
             sr.buildSymbolTable(n, &symTable);
-            rl.resolve(n);
+            rl.resolveLocals(n);
             cout<<"Compiling..."<<endl;
             genCode(n, false);
             cout<<"Compiled Bytecode: "<<endl;

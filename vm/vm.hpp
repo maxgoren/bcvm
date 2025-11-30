@@ -48,8 +48,8 @@ class VM {
             }
             return x;
         }
-        StackItem& top() {
-            return opstk[sp];
+        StackItem& top(int depth = 0) {
+            return opstk[sp-depth];
         }
         void closeOver(Instruction& inst) {
             int func_id = inst.operand[0].intval;
@@ -83,25 +83,24 @@ class VM {
             if (verbLev > 1)
                 cout<<"Leaving scope."<<endl;
         }
+        Closure* getProcedureForCall(int cpIdx) {
+            if (cpIdx == -1)
+                return opstk[sp--].objval->closure;
+            if (opstk[sp].type == OBJECT && opstk[sp].objval->type == CLOSURE)
+                sp--;
+            return constPool.get(cpIdx).objval->closure;
+        }
         void callProcedure(Instruction& inst) {
             int returnAddr = ip;
             int numArgs = inst.operand[1].intval;
             int lexDepth = inst.operand[2].intval;
             int cpIdx = inst.operand[0].intval;
-            Closure* close;
-            if (cpIdx == -1) {
-                close = opstk[sp--].objval->closure;
-            } else {
-                if (opstk[sp].type == OBJECT && opstk[sp].objval->type == CLOSURE)
-                    sp--;
-                close = constPool.get(cpIdx).objval->closure;
-            }
-            ActivationRecord* nextAR = new ActivationRecord(returnAddr, numArgs, callstk, close->env);            
+            Closure* close = getProcedureForCall(cpIdx);
+            callstk = new ActivationRecord(returnAddr, numArgs, callstk, close->env);            
             for (int i = numArgs; i > 0; i--) {
-                nextAR->locals[i] = opstk[sp--];
+                callstk->locals[i] = opstk[sp--];
             }
-            nextAR->returnAddress = returnAddr;
-            callstk = nextAR;
+            callstk->returnAddress = returnAddr;
             ip = close->func->start_ip;
         }
         void storeGlobal() {
@@ -141,15 +140,14 @@ class VM {
                 cout<<"Stored upval at "<<t.intval<<" in scope "<<(inst.operand[0].intval)<<endl;
         }
         void loadIndexed(Instruction& inst) {
-            StackItem t = opstk[sp--];
-            opstk[++sp] = (opstk[sp--].objval->list->at(t.numval));
+            top(1) = (top(1).objval->list->at(top(0).numval));
+            sp--;
         }
         void indexed_store(Instruction& inst) {
-            StackItem index = opstk[sp--];
-            StackItem list = opstk[sp--];
-            list.objval->list->at(index.numval) = opstk[sp--];
-            opstk[++sp] = (list);
-            opstk[++sp] = (index);
+            top(1).objval->list->at(top(0).numval) = top(2);
+            top(2) = top(1);
+            top(1) = top(0);
+            sp--;
         }
         void loadConst(Instruction& inst) {
             if (inst.operand[0].type == INTEGER) {
@@ -188,52 +186,41 @@ class VM {
         void relationOperation(Instruction& inst) {
             switch (inst.operand[0].intval) {
                 case VM_LT:   {
-                    StackItem rhs = opstk[sp--];
-                    StackItem lhs = opstk[sp--];
-                    opstk[++sp] = (StackItem(lhs.lessThan(rhs)));
+                    top(1).boolval = top(1).lessThan(top(0));
                 } break;
                 case VM_GT:   {
-                    StackItem rhs = opstk[sp--];
-                    StackItem lhs = opstk[sp--];
-                    opstk[++sp] = (StackItem(rhs.lessThan(lhs)));
+                    top(1).boolval = top(0).lessThan(top(1));
                 } break;
                 case VM_EQU:  {
-                    StackItem rhs = opstk[sp--];
-                    StackItem lhs = opstk[sp--];
-                    opstk[++sp] = (StackItem(!lhs.lessThan(rhs) && !rhs.lessThan(lhs)));
+                    top(1).boolval = (!top(1).lessThan(top(0)) && !top(0).lessThan(top(1)));
                 } break;
                 case VM_NEQ: {
-                    StackItem rhs = opstk[sp--];
-                    StackItem lhs = opstk[sp--];
-                    opstk[++sp] = (StackItem(lhs.lessThan(rhs) || rhs.lessThan(lhs)));
+                    top(1).boolval = (top(1).lessThan(top(0)) || top(0).lessThan(top(1)));
                 } break;
             }
+            sp--;
         }
         void arithmeticOperation(Instruction& inst) {
             switch (inst.operand[0].intval) {
                 case VM_ADD:  {
-                    StackItem rhs = opstk[sp--];
-                    top().add(rhs);
+                    top(1).add(top());
                 } break;
                 case VM_SUB:  {
-                    StackItem rhs = opstk[sp--];
-                    top().sub(rhs);
+                    top(1).sub(top());
                 } break;
                 case VM_MUL:  {
-                    StackItem rhs = opstk[sp--];
-                    top().mul(rhs);
+                    top(1).mul(top());
                 } break;
                 case VM_DIV:  {
-                    StackItem rhs = opstk[sp--];
-                    top().div(rhs);
+                    top(1).div(top());
                 } break;
                 case VM_MOD:  {
-                    StackItem rhs = opstk[sp--];
-                    top().mod(rhs);
+                    top(1).mod(top());
                 } break;
                 default:
                     break;
             }
+            sp--;
         }
         void appendList() {
             StackItem item = opstk[sp--];
@@ -244,6 +231,7 @@ class VM {
             StackItem item = opstk[sp--];
             if (top().type == OBJECT && top().objval->type == LIST)
                 top().objval->list->push_front(item);
+            sp--;
         }
         void haltvm() {
             running = false;
@@ -275,6 +263,7 @@ class VM {
                 case ldglobaladdr: { opstk[++sp] = (inst.operand[0].intval); } break;
                 case ldfield:      { loadIndexed(inst); } break;
                 case label: { /* nop() */ } break;
+                case popstack:  { sp--; } break; 
                 case mkclosure: { closeOver(inst); } break;
                 default:
                     break;

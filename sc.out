@@ -17,6 +17,8 @@ Parse complete.
  out
   (
    out
+ println
+  x
 Build Symbol Table: 
 Rnnnt.
 out added with address 2 in positon 1
@@ -28,6 +30,7 @@ Open new scope
 Variable x resolved to scope level 1 (1)
 Close scope.
 Close scope.
+Variable x resolved to scope level as global
 Compiling...
 Compiling Assignment: 
 Compiling Constant: "global"
@@ -45,6 +48,8 @@ Compiling ID expression: LDGLOBAL: innscopelevel=-1 depth=-1
 Rnnnt.
 Compiling Function Call.
 Compiling ID expression: LDGLOBAL: outscopelevel=-1 depth=-1
+Compiling Print Statement: 
+Compiling ID expression: LDGLOBAL: xscopelevel=-1 depth=-1
 Compiled Bytecode: 
  0: [0x 4 ldconst 2 . ]
  1: [0x 9 ldglobaladdr 1 . ]
@@ -72,7 +77,9 @@ Compiled Bytecode:
 23: [0x11 stlocal 2 . ]
 24: [0x 5 ldglobal 2 . ]
 25: [0x14 call 0 0 -1 ]
-26: [0x27 halt 0 . ]
+26: [0x 5 ldglobal 1 . ]
+27: [0x26 print . . ]
+28: [0x27 halt 0 . ]
 Symbol table: Symbol table: 
   x: 1, -1
   out: 2, 1
@@ -268,8 +275,6 @@ Instrctn: 19: [0x014(call), 1,0, -1]
 Operands:  0: [(nil)] 
 Callstack: 
 	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
-	   Lexical stack: 
-	  	   	  1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, 
 	   1: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
 Globals: 
 	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
@@ -280,34 +285,28 @@ Instrctn: 10: [0x00(defun), inn,0]
 Operands:  0: [(nil)] 
 Callstack: 
 	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
-	   Lexical stack: 
-	  	   	  1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, 
 	   1: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
 Globals: 
 	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
 ================
 Instrctn: 11: [0x07(ldupval), 1,1]  
 ----------------
-loaded vpval: "global"from 1 of scope 0
+loaded vpval: "inz"from 1 of scope 0
 ----------------
-Operands:  0: [(nil)] 1: ["global"] 
+Operands:  0: [(nil)] 1: ["inz"] 
 Callstack: 
 	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
-	   Lexical stack: 
-	  	   	  1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, 
 	   1: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
 Globals: 
 	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
 ================
 Instrctn: 12: [0x026(print), (nil),(nil)]  
 ----------------
-"global"
+"inz"
 ----------------
 Operands:  0: [(nil)] 
 Callstack: 
 	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
-	   Lexical stack: 
-	  	   	  1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, 
 	   1: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
 Globals: 
 	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
@@ -331,7 +330,25 @@ Callstack:
 Globals: 
 	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
 ================
-Instrctn: 27: [0x027(halt), 0,(nil)]  
+Instrctn: 27: [0x05(ldglobal), 1,(nil)]  
+----------------
+Load "global" from 1
+----------------
+Operands:  0: [(nil)] 1: ["global"] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 28: [0x026(print), (nil),(nil)]  
+----------------
+"global"
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 29: [0x027(halt), 0,(nil)]  
 ----------------
 ----------------
 Operands:  0: [(nil)] 
