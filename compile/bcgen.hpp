@@ -55,11 +55,26 @@ class STBuilder {
                     buildSymbolTable(t->next);
                     return;
                 } break;
+                case IF_STMT: {
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
+                } break;
+                case WHILE_STMT: {
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
+                } break;
+                case EXPR_STMT: {
+                    buildSymbolTable(t->left);
+                } break;
+                case RETURN_STMT: {
+                    buildSymbolTable(t->left);
+                } break;
+                case STMT_LIST: {
+                    buildStatementST(t->left);
+                } break;
                 default: 
                 break;
             }
-            buildSymbolTable(t->left);
-            buildSymbolTable(t->right);
             buildSymbolTable(t->next);
         } 
         void buildExpressionST(astnode* t, bool fromLet) {
@@ -76,6 +91,9 @@ class STBuilder {
                     } else if (symTable->lookup(t->token.getString(), t->token.lineNumber()).addr == -1) {    
                         cout<<"Error: Unknown variable name: "<<t->token.getString()<<endl;
                     } 
+                } break;
+                case FUNC_EXPR: {
+
                 } break;
                 case LAMBDA_EXPR: {
                     string name = nameLambda();
@@ -313,7 +331,7 @@ class  ByteCodeGenerator {
                     emit(Instruction(ldglobal, item.addr));
                     cout << "LDGLOBAL: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << n->token.scopeLevel()<< endl;
                 } else if (depth == 0) {
-                    emit(Instruction(ldlocal, item.addr, 0));
+                    emit(Instruction(ldlocal, item.addr));
                     cout << "LDLOCAL: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << n->token.scopeLevel()<< endl;
                 } else {
                     emit(Instruction(ldupval, item.addr, depth));
@@ -322,13 +340,15 @@ class  ByteCodeGenerator {
                 }
             }
         }
-        void emitStore(astnode* node) {
-            SymbolTableEntry item = symTable.lookup(node->left->token.getString(), 1);
-            int depth = node->left->token.scopeLevel();
+        void emitStore(astnode* n) {
+            SymbolTableEntry item = symTable.lookup(n->left->token.getString(), 1);
+            int depth = n->left->token.scopeLevel();
             if (item.depth == GLOBAL_SCOPE) {
                 emit(Instruction(stglobal, item.addr));
+                cout << "STGLOBAL: " << n->token.getString()<<"scopelevel="<<n->left->token.scopeLevel() << " depth=" << n->left->token.scopeLevel()<< endl;
             } else if (depth == 0) {
                 emit(Instruction(stlocal, item.addr));
+                cout << "STLOCAL: " << n->token.getString()<<"scopelevel="<<n->left->token.scopeLevel() << " depth=" << n->left->token.scopeLevel()<< endl;
             } else {
                 emit(Instruction(stupval, item.addr, depth));
             }

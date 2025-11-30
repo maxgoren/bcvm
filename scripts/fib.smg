@@ -10,7 +10,7 @@ fn isEven(let m) {
 }
 fn cufibs(let m) {
 	if (m < 10) {
-		if (!isEven(fib(m))) {
+		if (isEven(fib(m))) {
 			println fib(m);
 		}
 		return cufibs(m+1);

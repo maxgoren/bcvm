@@ -1,0 +1,341 @@
+Parse complete.
+ let
+  :=
+   x
+   "global"
+ out
+  let
+   :=
+    x
+    "inz"
+  inn
+   println
+    x
+  inn
+   (
+    inn
+ out
+  (
+   out
+Build Symbol Table: 
+Rnnnt.
+out added with address 2 in positon 1
+inn added with address 2 in positon 1
+Variable x resolved to scope level as global
+Open new scope
+Variable x resolved to scope level 0 (0)
+Open new scope
+Variable x resolved to scope level 1 (1)
+Close scope.
+Close scope.
+Compiling...
+Compiling Assignment: 
+Compiling Constant: "global"
+Compiling ID expression: STGLOBAL: :=scopelevel=-1 depth=-1
+Compiling Function Definition: out
+Compiling Assignment: 
+Compiling Constant: "inz"
+Compiling ID expression: STLOCAL: :=scopelevel=0 depth=0
+Compiling Function Definition: inn
+Compiling Print Statement: 
+Compiling ID expression: 
+ [AS UPVAL THO]LDUPVAL: xscopelevel=1 depth=1
+Compiling Function Call.
+Compiling ID expression: LDGLOBAL: innscopelevel=-1 depth=-1
+Rnnnt.
+Compiling Function Call.
+Compiling ID expression: LDGLOBAL: outscopelevel=-1 depth=-1
+Compiled Bytecode: 
+ 0: [0x 4 ldconst 2 . ]
+ 1: [0x 9 ldglobaladdr 1 . ]
+ 2: [0x10 stglobal 1 . ]
+ 3: [0x18 jump 20 . ]
+ 4: [0x 0 defun . 0 ]
+ 5: [0x 4 ldconst 3 . ]
+ 6: [0x 8 ldlocaladdr 1 . ]
+ 7: [0x11 stlocal 1 . ]
+ 8: [0x18 jump 13 . ]
+ 9: [0x 0 defun . 0 ]
+10: [0x 7 ldupval 1 1 ]
+11: [0x26 print . . ]
+12: [0x15 retfun . . ]
+13: [0x 1 label . . ]
+14: [0x22 mkclosure 1 2 ]
+15: [0x 8 ldlocaladdr 2 -1 ]
+16: [0x11 stlocal 2 . ]
+17: [0x 5 ldglobal 2 . ]
+18: [0x14 call 1 0 -1 ]
+19: [0x15 retfun . . ]
+20: [0x 1 label . . ]
+21: [0x22 mkclosure 0 1 ]
+22: [0x 8 ldlocaladdr 2 -2 ]
+23: [0x11 stlocal 2 . ]
+24: [0x 5 ldglobal 2 . ]
+25: [0x14 call 0 0 -1 ]
+26: [0x27 halt 0 . ]
+Symbol table: Symbol table: 
+  x: 1, -1
+  out: 2, 1
+    x: 1, 1
+    inn: 2, 2
+----------------
+Instrctn: 1: [0x04(ldconst), 2,(nil)]  
+----------------
+----------------
+Operands:  0: [(nil)] 1: ["global"] 
+Callstack: 
+Globals: 
+	    1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 2: [0x09(ldglobaladdr), 1,(nil)]  
+----------------
+----------------
+Operands:  0: [(nil)] 1: ["global"] 2: [1] 
+Callstack: 
+Globals: 
+	    1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 3: [0x010(stglobal), 1,(nil)]  
+----------------
+Stored global at 1
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 4: [0x018(jump), 20,(nil)]  
+----------------
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 21: [0x01(label), L1,(nil)]  
+----------------
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 22: [0x022(mkclosure), 0,1]  
+----------------
+Closing over 1 defining env's
+Stashed defining env in constPool object for out
+[(nil)] ["global"] [(nil)] [(nil)] [(nil)] 
+----------------
+Operands:  0: [(nil)] 1: [(closure)out, 4] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 23: [0x08(ldlocaladdr), 2,-2]  
+----------------
+----------------
+Operands:  0: [(nil)] 1: [(closure)out, 4] 2: [2] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 24: [0x011(stlocal), 2,(nil)]  
+----------------
+Stored local at 2
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 25: [0x05(ldglobal), 2,(nil)]  
+----------------
+Load (closure)out, 4 from 2
+----------------
+Operands:  0: [(nil)] 1: [(closure)out, 4] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 26: [0x014(call), 0,0, -1]  
+----------------
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 5: [0x00(defun), out,0]  
+----------------
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 6: [0x04(ldconst), 3,(nil)]  
+----------------
+----------------
+Operands:  0: [(nil)] 1: ["inz"] 
+Callstack: 
+	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 7: [0x08(ldlocaladdr), 1,(nil)]  
+----------------
+----------------
+Operands:  0: [(nil)] 1: ["inz"] 2: [1] 
+Callstack: 
+	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 8: [0x011(stlocal), 1,(nil)]  
+----------------
+Stored local at 1
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {"inz"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 9: [0x018(jump), 13,(nil)]  
+----------------
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {"inz"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 14: [0x01(label), L0,(nil)]  
+----------------
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {"inz"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 15: [0x022(mkclosure), 1,2]  
+----------------
+Closing over 2 defining env's
+Stashed defining env in constPool object for inn
+[(nil)] ["inz"] [(nil)] [(nil)] [(nil)] 
+----------------
+Operands:  0: [(nil)] 1: [(closure)inn, 9] 
+Callstack: 
+	   0: [ 1: {"inz"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 16: [0x08(ldlocaladdr), 2,-1]  
+----------------
+----------------
+Operands:  0: [(nil)] 1: [(closure)inn, 9] 2: [2] 
+Callstack: 
+	   0: [ 1: {"inz"}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 17: [0x011(stlocal), 2,(nil)]  
+----------------
+Stored local at 2
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 18: [0x05(ldglobal), 2,(nil)]  
+----------------
+Load (closure)out, 4 from 2
+----------------
+Operands:  0: [(nil)] 1: [(closure)out, 4] 
+Callstack: 
+	   0: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 19: [0x014(call), 1,0, -1]  
+----------------
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+	   Lexical stack: 
+	  	   	  1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, 
+	   1: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 10: [0x00(defun), inn,0]  
+----------------
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+	   Lexical stack: 
+	  	   	  1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, 
+	   1: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 11: [0x07(ldupval), 1,1]  
+----------------
+loaded vpval: "global"from 1 of scope 0
+----------------
+Operands:  0: [(nil)] 1: ["global"] 
+Callstack: 
+	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+	   Lexical stack: 
+	  	   	  1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, 
+	   1: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 12: [0x026(print), (nil),(nil)]  
+----------------
+"global"
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {(nil)}, 2: {(nil)}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+	   Lexical stack: 
+	  	   	  1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, 
+	   1: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 13: [0x015(retfun), (nil),(nil)]  
+----------------
+Leaving scope.
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+	   0: [ 1: {"inz"}, 2: {(closure)inn, 9}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 20: [0x015(retfun), (nil),(nil)]  
+----------------
+Leaving scope.
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================
+Instrctn: 27: [0x027(halt), 0,(nil)]  
+----------------
+----------------
+Operands:  0: [(nil)] 
+Callstack: 
+Globals: 
+	    1: {"global"}, 2: {(closure)out, 4}, 3: {(nil)}, 4: {(nil)}, 5: {(nil)}, ]
+================

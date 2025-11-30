@@ -59,6 +59,10 @@ class VM {
             if (constPool.get(func_id).objval->closure->env == nullptr) {
                 constPool.get(func_id).objval->closure->env = callstk; 
                 cout<<"Stashed defining env in constPool object for "<<constPool.get(func_id).objval->closure->func->name<<endl;
+                for (int i = 0; i < 5; i++) {
+                    cout<<"["<<constPool.get(func_id).objval->closure->env->locals[i].toString()<<"] ";
+                }
+                cout<<endl;
             }
             opstk[++sp] = StackItem(new GCItem(constPool.get(func_id).objval->closure));
         }
@@ -92,13 +96,7 @@ class VM {
                     sp--;
                 close = constPool.get(cpIdx).objval->closure;
             }
-            ActivationRecord* staticLink;
-            if (lexDepth == -1) {
-                staticLink = globals;
-            } else {
-                staticLink = close->env;
-            }
-            ActivationRecord* nextAR = new ActivationRecord(returnAddr, numArgs, callstk, staticLink);            
+            ActivationRecord* nextAR = new ActivationRecord(returnAddr, numArgs, callstk, close->env);            
             for (int i = numArgs; i > 0; i--) {
                 nextAR->locals[i] = opstk[sp--];
             }
@@ -304,29 +302,29 @@ class VM {
             cout<<"Callstack: \n";
             auto x = callstk;
             int i = 0;
-            while (x != globals && x->control != globals) {
+            while (x != x->control->control) {
                 cout<<"\t   "<<i++<<": [ ";
                 for (int j = 1; j <= 5; j++) {
                     cout<<(j)<<": "<<"{"<<x->locals[j].toString()<<"}, ";
                 }
                 cout<<"]"<<endl;
                 if (x->access != x->control) {
-                    cout<<"\t Lexical stack: \n";
+                    cout<<"\t   Lexical stack: \n";
                     int l = i;
                     auto t = x->access;
-                    while (t != globals && t->control != globals) {
-                        cout<<"\t \t  "<<l++<<": [ ";
+                    while (t != globals) {
+                        cout<<"\t   \t    \t     "<<l++<<": [ ";
                         for (int j = 1; j <= 5; j++) {
                             cout<<(j)<<": "<<"{"<<t->locals[j].toString()<<"}, ";
                         }
                         cout<<"]"<<endl;
                         t = t->access;
                     }
-                    cout<<"\t \t  "<<l++<<": [ ";
+                    cout<<"\t  \t   \t  ";
                     for (int j = 1; j <= 5; j++) {
                         cout<<(j)<<": "<<"{"<<t->locals[j].toString()<<"}, ";
                     }
-                    cout<<"]"<<endl;
+                    cout<<endl;
                 }
                 x = x->control;
             }            
