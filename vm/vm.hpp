@@ -39,23 +39,14 @@ class VM {
         ActivationRecord *globals;
         StackItem opstk[MAX_OP_STACK];
         ActivationRecord* walkChain(int d) {
-            if (d == -56) return globals;
+            if (d == GLOBAL_SCOPE) return globals;
+            if (d == 0) return callstk;
             auto x = callstk;
             while (x != nullptr && d > 0) {
                 x = x->access;
                 d--;
             }
-            if (x == nullptr) {
-                x = globals;
-                cout<<"Wrong chain length, default to globals."<<endl;
-            } else {
-                cout << "WalkChain depth " << d << ", returns AR at ";
-                for (int i = 0; i <= 5; i++) {
-                    cout<<"{i: "<<x->locals[i].toString()<<"}";
-                }
-            }
-            cout<<endl;
-            return x ? x:globals;
+            return x;
         }
         StackItem& top() {
             return opstk[sp];
@@ -65,8 +56,11 @@ class VM {
             int depth = inst.operand[1].intval;
             cout<<"Closing over "<<depth<<" defining env's"<<endl;
             //stash current activation record as closures defining env
-            constPool.get(func_id).objval->closure->env = callstk; 
-            opstk[++sp] = constPool.get(func_id);
+            if (constPool.get(func_id).objval->closure->env == nullptr) {
+                constPool.get(func_id).objval->closure->env = callstk; 
+                cout<<"Stashed defining env in constPool object for "<<constPool.get(func_id).objval->closure->func->name<<endl;
+            }
+            opstk[++sp] = StackItem(new GCItem(constPool.get(func_id).objval->closure));
         }
         void closeScope() {
             if (callstk == nullptr) {
@@ -77,7 +71,7 @@ class VM {
             popScope();
         }
         void openBlock(Instruction& inst) {
-            callstk = new ActivationRecord(ip, inst.operand[1].intval, callstk, walkChain(inst.operand[2].intval));
+            callstk = new ActivationRecord(ip, inst.operand[1].intval, callstk, callstk);
         }
         void popScope() {
             if (callstk != nullptr && callstk->control != nullptr)
@@ -94,13 +88,13 @@ class VM {
             if (cpIdx == -1) {
                 close = opstk[sp--].objval->closure;
             } else {
+                if (opstk[sp].type == OBJECT && opstk[sp].objval->type == CLOSURE)
+                    sp--;
                 close = constPool.get(cpIdx).objval->closure;
             }
             ActivationRecord* staticLink;
             if (lexDepth == -1) {
                 staticLink = globals;
-            } else if (lexDepth == 0) {
-                staticLink = callstk;
             } else {
                 staticLink = close->env;
             }
@@ -108,7 +102,6 @@ class VM {
             for (int i = numArgs; i > 0; i--) {
                 nextAR->locals[i] = opstk[sp--];
             }
-            nextAR->access = opstk[sp--].objval->closure->env;
             nextAR->returnAddress = returnAddr;
             callstk = nextAR;
             ip = close->func->start_ip;
@@ -294,7 +287,7 @@ class VM {
         }
         void printInstruction(Instruction& inst) {
             cout<<"Instrctn: "<<ip<<": [0x0"<<inst.op<<"("<<instrStr[inst.op]<<"), "<<inst.operand[0].toString()<<","<<inst.operand[1].toString();
-            if (inst.op == call) cout<<", "<<inst.operand[2].intval;
+            if (inst.op == call) cout<<", "<<inst.operand[2].toString();
             cout<<"]  \n";
         }
         void printTopOfStack() {
@@ -311,7 +304,7 @@ class VM {
             cout<<"Callstack: \n";
             auto x = callstk;
             int i = 0;
-            while (x != nullptr) {
+            while (x != globals && x->control != globals) {
                 cout<<"\t   "<<i++<<": [ ";
                 for (int j = 1; j <= 5; j++) {
                     cout<<(j)<<": "<<"{"<<x->locals[j].toString()<<"}, ";
@@ -321,7 +314,7 @@ class VM {
                     cout<<"\t Lexical stack: \n";
                     int l = i;
                     auto t = x->access;
-                    while (t != nullptr) {
+                    while (t != globals && t->control != globals) {
                         cout<<"\t \t  "<<l++<<": [ ";
                         for (int j = 1; j <= 5; j++) {
                             cout<<(j)<<": "<<"{"<<t->locals[j].toString()<<"}, ";
@@ -329,6 +322,11 @@ class VM {
                         cout<<"]"<<endl;
                         t = t->access;
                     }
+                    cout<<"\t \t  "<<l++<<": [ ";
+                    for (int j = 1; j <= 5; j++) {
+                        cout<<(j)<<": "<<"{"<<t->locals[j].toString()<<"}, ";
+                    }
+                    cout<<"]"<<endl;
                 }
                 x = x->control;
             }            
@@ -351,6 +349,8 @@ class VM {
             fp = 0;
             haltSentinel = Instruction(halt);
             globals = new ActivationRecord(0, 0, nullptr, nullptr);
+            globals->control = globals;
+            globals->access = globals;
             callstk = globals;
         }
         void setConstPool(ConstPool& cp) {

@@ -1,5 +1,5 @@
 fn p() {
-    let x := 0;
+    let x := 4;
     fn q() {
         fn r() {
             x := 2;

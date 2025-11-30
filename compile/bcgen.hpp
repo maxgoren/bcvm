@@ -11,7 +11,7 @@ using namespace std;
 //{ fn ok() { println "hi"; }; ok(); }
 
 
-const int GLOBAL_SCOPE = -56;
+const int GLOBAL_SCOPE = -1;
 
 class STBuilder {
     private:
@@ -141,7 +141,8 @@ class ResolveLocals {
         void resolveName(string name, astnode* t) {
             for (int i = scopes.size() - 1; i >= 0; i--) {
                 if (scopes[i].find(name) != scopes[i].end()) {
-                    t->token.setScopeLevel(scopes.size() - 1 - i);
+                    int depth = (scopes.size() - 1 - i);
+                    t->token.setScopeLevel(depth);
                     cout << "Variable " << name << " resolved to scope level " << t->token.scopeLevel() <<" ("<<(scopes.size()-1-i)<<")"<<endl;
                     return;
                 }
@@ -169,6 +170,7 @@ class ResolveLocals {
                     declareName(x->token.getString());
                     resolve(node->right);
                     defineName(x->token.getString());
+                    resolve(node->left);
                 } break;
                 case RETURN_STMT: {
                     resolve(node->left);
@@ -328,7 +330,7 @@ class  ByteCodeGenerator {
             } else if (depth == 0) {
                 emit(Instruction(stlocal, item.addr));
             } else {
-                emit(Instruction(stupval, depth, depth));
+                emit(Instruction(stupval, item.addr, depth));
             }
 
         }
@@ -414,8 +416,8 @@ class  ByteCodeGenerator {
             int argsCount = 0;
             for (auto x = n->right; x != nullptr; x = x->next)
                 argsCount++;
-            genExpression(n->left, false);
             genCode(n->right, false);
+            genExpression(n->left, false);
             emit(Instruction(call, fn_info.constPoolIndex, argsCount, n->left->token.scopeLevel()));
         }
         void emitListConstructor(astnode* n) {

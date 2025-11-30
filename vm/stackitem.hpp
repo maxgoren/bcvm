@@ -45,6 +45,7 @@ struct ActivationRecord;
 struct Closure {
     Function* func;
     ActivationRecord* env;
+    Closure(Function* f, ActivationRecord* e) : func(f), env(e) { }
     Closure(Function* f) : func(f), env(nullptr) { }
     Closure(const Closure& c) {
         func = c.func;
