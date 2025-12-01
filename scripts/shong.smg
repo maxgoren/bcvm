@@ -1,5 +1,0 @@
-fn shongdui(let k) {
-    return k+k;
-}
-let a := shongdui;
-println a(3);

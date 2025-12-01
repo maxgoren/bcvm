@@ -40,11 +40,12 @@ class VM {
         StackItem opstk[MAX_OP_STACK];
         ActivationRecord* walkChain(int d) {
             if (d == GLOBAL_SCOPE) return globals;
-            if (d == 0) return callstk;
+            if (d == LOCAL_SCOPE) return callstk;
             auto x = callstk;
             while (x != nullptr && d > 0) {
                 x = x->access;
                 d--;
+              //  cout<<".";
             }
             return x;
         }
@@ -54,30 +55,21 @@ class VM {
         void closeOver(Instruction& inst) {
             int func_id = inst.operand[0].intval;
             int depth = inst.operand[1].intval;
-            cout<<"Closing over "<<depth<<" defining env's"<<endl;
+            //cout<<"Closing over "<<depth<<" defining env's"<<endl;
             //stash current activation record as closures defining env
             if (constPool.get(func_id).objval->closure->env == nullptr) {
                 constPool.get(func_id).objval->closure->env = callstk; 
-                cout<<"Stashed defining env in constPool object for "<<constPool.get(func_id).objval->closure->func->name<<endl;
-                for (int i = 0; i < 5; i++) {
-                    cout<<"["<<constPool.get(func_id).objval->closure->env->locals[i].toString()<<"] ";
-                }
-                cout<<endl;
             }
             opstk[++sp] = StackItem(new GCItem(constPool.get(func_id).objval->closure));
         }
-        void closeScope() {
-            if (callstk == nullptr) {
-                for (int i = 0; i < 8; i++)
-                    cout<<"Hey what the fuck is this?"<<endl;
-            }
+        void retProc() {
             ip = callstk->returnAddress;
-            popScope();
+            closeBlock();
         }
         void openBlock(Instruction& inst) {
             callstk = new ActivationRecord(ip, inst.operand[1].intval, callstk, callstk);
         }
-        void popScope() {
+        void closeBlock() {
             if (callstk != nullptr && callstk->control != nullptr)
                 callstk = callstk->control;
             if (verbLev > 1)
@@ -107,8 +99,6 @@ class VM {
             StackItem t = opstk[sp--];
             StackItem val = opstk[sp--];
             globals->locals[t.intval] =  val;
-            if (verbLev > 1)
-                cout<<"Stored global at "<<t.intval<<endl;
         }
         void loadGlobal(Instruction& inst) {
             if (verbLev > 1)
@@ -123,7 +113,7 @@ class VM {
         void loadUpval(Instruction& inst) {
             opstk[++sp] = walkChain(inst.operand[1].intval)->locals[inst.operand[0].intval];
             if (verbLev > 1)
-                cout<<"loaded vpval: "<<opstk[sp].toString()<<"from "<<inst.operand[0].intval<<" of scope "<<(fp)<<endl;
+                cout<<"loaded Upval: "<<opstk[sp].toString()<<"from "<<inst.operand[0].intval<<" of scope "<<(fp)<<endl;
         } 
         void storeLocal(Instruction& inst) {
             StackItem t = opstk[sp--];
@@ -233,18 +223,25 @@ class VM {
                 top().objval->list->push_front(item);
             sp--;
         }
+        void listLength() {
+            if (top().type == OBJECT && top().objval->type == LIST)
+                opstk[++sp] = ((double)opstk[sp--].objval->list->size());
+        }
         void haltvm() {
             running = false;
+        }
+        void printTopOfStack() {
+            cout<<opstk[sp--].toString()<<endl;
         }
         void execute(Instruction& inst) {
             switch (inst.op) {
                 case list_append: { appendList();   } break;
                 case list_push:  { pushList(); } break;
-                case list_len:  { opstk[++sp] = ((double)opstk[sp--].objval->list->size()); } break;
-                case call:   { callProcedure(inst); } break;
-                case retfun:   { closeScope(); } break;
+                case list_len:  { listLength(); } break;
+                case call:     { callProcedure(inst); } break;
+                case retfun:   { retProc(); } break;
                 case entblk:   { openBlock(inst); } break;
-                case retblk:   { popScope(); } break;
+                case retblk:   { closeBlock(); } break;
                 case jump:     { uncondBranch(inst); } break;
                 case brf:      { branchOnFalse(inst); } break;
                 case binop:    { binaryOperation(inst); } break;
@@ -276,9 +273,6 @@ class VM {
             cout<<"Instrctn: "<<ip<<": [0x0"<<inst.op<<"("<<instrStr[inst.op]<<"), "<<inst.operand[0].toString()<<","<<inst.operand[1].toString();
             if (inst.op == call) cout<<", "<<inst.operand[2].toString();
             cout<<"]  \n";
-        }
-        void printTopOfStack() {
-            cout<<opstk[sp--].toString()<<endl;
         }
         void printOperandStack() {
             cout<<"Operands:  ";
@@ -336,8 +330,8 @@ class VM {
             fp = 0;
             haltSentinel = Instruction(halt);
             globals = new ActivationRecord(0, 0, nullptr, nullptr);
-            globals->control = globals;
             globals->access = globals;
+            globals->control = globals;
             callstk = globals;
         }
         void setConstPool(ConstPool& cp) {

@@ -1,18 +1,20 @@
+let fibs := [0,1];
 fn fib(let k) {
 	if (k < 2) {
 		return 1;
 	}
-	return fib(k-1)+fib(k-2);
+	if (k < fibs.size()) {
+		return fibs[k];
+	}
+	fibs.append(fib(k-1)+fib(k-2));
+	return fibs[k];
 }
-println fib(6);
 fn isEven(let m) {
 	return m % 2 == 0;
 }
 fn cufibs(let m) {
-	if (m < 10) {
-		if (isEven(fib(m))) {
-			println fib(m);
-		}
+	if (m < 40) {
+		println fib(m);
 		return cufibs(m+1);
 	}
 }

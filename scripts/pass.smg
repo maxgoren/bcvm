@@ -1,0 +1,15 @@
+let m := 0;
+fn f(let n) {
+    return m+n;
+}
+
+fn g(let n) {
+    return m*n;
+}
+
+fn b(let q) {
+    println q(2);
+}
+
+b(f);
+b(g);
