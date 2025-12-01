@@ -25,7 +25,7 @@ string instrStr[] = { "defun", "label", "ldfield", "ldconstpl", "ldconst", "ldgl
 enum VMOperators {
     VM_ADD = 1, VM_SUB = 2, VM_MUL = 3, VM_DIV = 4, 
     VM_MOD=5, VM_LT=7, VM_GT=8, VM_EQU=9, VM_NEQ=10,
-    VM_NEG = 11
+    VM_NEG = 11, VM_LTE = 12, VM_GTE = 13
 };
 
 struct Instruction {

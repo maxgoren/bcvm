@@ -55,6 +55,8 @@
 {">=", TK_GTE}
 {"<=", TK_LTE}
 {";", TK_SEMI}
+{"\|\|", TK_LOGIC_OR}
+{"&&", TK_LOGIC_AND}
 {"&\(", TK_LAMBDA}
 {"->", TK_PRODUCE}
 {"[,]", TK_COMMA}

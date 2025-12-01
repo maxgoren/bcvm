@@ -181,6 +181,12 @@ class VM {
                 case VM_GT:   {
                     top(1).boolval = top(0).lessThan(top(1));
                 } break;
+                case VM_LTE: {
+                top(1).boolval = (top(1).lessThan(top(0)) || (!top(1).lessThan(top(0)) && !top(0).lessThan(top(1))));
+                } break;
+                case VM_GTE: {
+                    top(1).boolval = (top(0).lessThan(top(1)) || (!top(1).lessThan(top(0)) && !top(0).lessThan(top(1))));
+                } break;
                 case VM_EQU:  {
                     top(1).boolval = (!top(1).lessThan(top(0)) && !top(0).lessThan(top(1)));
                 } break;

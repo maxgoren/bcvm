@@ -181,7 +181,7 @@ class Parser {
         astnode* relopExpr() {
          //   cout<<"relop expr"<<endl;
             astnode* n = term();
-            while (expect(TK_LT) || expect(TK_GT)) {
+            while (expect(TK_LT) || expect(TK_GT) || expect(TK_LTE) || expect(TK_GTE)) {
                 astnode* q = new astnode(BIN_EXPR, current());
                 match(lookahead());
                 q->left = n;
