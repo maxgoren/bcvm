@@ -1,0 +1,20 @@
+{* Knuth's "Man or Boy test" *}
+
+fn delay(var i) { 
+    return &() -> i; 
+} 
+fn A(var k, var x1, var x2, var x3, var x4, var x5) { 
+    let B := &() { 
+        k := k - 1; 
+        return A(k, B, x1, x2, x3, x4); 
+    } 
+    if (k <= 0) { 
+        return x4()+x5(); 
+    } 
+    return B(); 
+} 
+let k := 5;
+while (k <= 15) {
+    println k + ": " + A(k, delay(1), delay(-1), delay(-1), delay(1), delay(0)); 
+    k := k + 1;
+}

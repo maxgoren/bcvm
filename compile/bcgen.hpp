@@ -78,12 +78,25 @@ class  ByteCodeGenerator {
                     case TK_GTE:  emit(Instruction(binop, VM_GTE)); break;
                     case TK_EQU:  emit(Instruction(binop, VM_EQU)); break;
                     case TK_NEQ:  emit(Instruction(binop, VM_NEQ)); break;
+                    case TK_LOGIC_AND:  emit(Instruction(binop, VM_LOGIC_AND)); break;
+                    case TK_LOGIC_OR:   emit(Instruction(binop, VM_LOGIC_OR)); break;
                 }
             }
         }
         void emitUnaryOperator(astnode* n) {
             genCode(n->left, false);
-            emit(Instruction(unop, VM_NEG));
+            switch (n->token.getSymbol()) {
+                case TK_INCREMENT: { 
+                    emit(Instruction(incr)); 
+                    genCode(n->left, true);
+                } break;
+                case TK_DECREMENT: { 
+                    emit(Instruction(decr)); 
+                    genCode(n->left, true);
+                } break;
+                default:
+                    emit(Instruction(unop, VM_NEG));
+            }
         }
         void emitLoadAddress(SymbolTableEntry& item, astnode* n) {
             if (n->token.scopeLevel() == GLOBAL_SCOPE) {

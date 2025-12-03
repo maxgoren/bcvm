@@ -62,3 +62,5 @@
 {"[,]", TK_COMMA}
 {"[.]", TK_PERIOD}
 {"[0-9]+([.][0-9]+)*", TK_NUM}
+{"\{\*", TK_OPEN_COMMENT}
+{"\*\}", TK_CLOSE_COMMENT}

@@ -1,17 +1,13 @@
 fn sorting(let xs) {
     fn swap(let xs, let l, let r) {
-        println xs[l];
-        println xs[r];
         let tmp := xs[l]; 
         xs[l] := xs[r];
         xs[r] := tmp;
-        println xs[l];
-        println xs[r];
     }
     fn buble(let xs) {
         let i := 0;
-        while (i < 7) {
-            let j := 6;
+        while (i < xs.size()) {
+            let j := (xs.size()) - 1;
             while (j > i) { 
                 if (xs[i] > xs[j]) {
                     swap(xs, i, j);

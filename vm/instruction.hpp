@@ -12,20 +12,21 @@ enum VMInstruction {
     stupval, stfield,
     call, retfun, 
     entblk, retblk,
-    jump, brf, 
+    jump, brf, incr, decr,
     binop, unop, mkclosure, popstack,
     list_append, list_push, list_len,
     print, halt
 };
 
 string instrStr[] = { "defun", "label", "ldfield", "ldconstpl", "ldconst", "ldglobal", "ldlocal", "ldupval", "ldlocaladdr", "ldglobaladdr",
-                     "stglobal", "stlocal", "stupval", "stfield", "call", "retfun", "entblk", "retblk", "jump", "brf", "binop", "unop", "mkclosure",
+                     "stglobal", "stlocal", "stupval", "stfield", "call", "retfun", "entblk", "retblk", "jump", "brf", "inc", "dec", "binop", "unop", "mkclosure",
                      "popstack", "append", "push", "list_len", "print", "halt"};
 
 enum VMOperators {
     VM_ADD = 1, VM_SUB = 2, VM_MUL = 3, VM_DIV = 4, 
     VM_MOD=5, VM_LT=7, VM_GT=8, VM_EQU=9, VM_NEQ=10,
-    VM_NEG = 11, VM_LTE = 12, VM_GTE = 13
+    VM_NEG = 11, VM_LTE = 12, VM_GTE = 13, VM_LOGIC_AND = 14,
+    VM_LOGIC_OR = 15
 };
 
 struct Instruction {

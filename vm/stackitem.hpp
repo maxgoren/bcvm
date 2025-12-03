@@ -3,110 +3,15 @@
 #include <iostream>
 #include <cmath>
 #include <deque>
+#include "gc.hpp"
 using namespace std;
 
 
 enum SIType {
     NIL, INTEGER, NUMBER, BOOLEAN, OBJECT
  };
- 
-enum GCType {
-    STRING, FUNCTION, CLOSURE, LIST
-};
 
-struct Scope;
-
-struct Function {
-    string name;
-    int start_ip;
-    Scope* scope;
-    Function(string n, int sip, Scope* sc) : name(n), start_ip(sip), scope(sc) { }
-    Function(const Function& f) {
-        name = f.name;
-        start_ip  = f.start_ip;
-        scope = f.scope;
-    }
-    Function& operator=(const Function& f) {
-        if (this != &f) {
-            name = f.name;
-            start_ip  = f.start_ip;
-            scope = f.scope;
-        }
-        return *this;
-    }
-};
-
-Function* makeFunction(string name, int start, Scope* s) {
-    return new Function(name, start, s); 
-}
-
-struct ActivationRecord;
-
-struct Closure {
-    Function* func;
-    ActivationRecord* env;
-    Closure(Function* f, ActivationRecord* e) : func(f), env(e) { }
-    Closure(Function* f) : func(f), env(nullptr) { }
-    Closure(const Closure& c) {
-        func = c.func;
-        env = c.env;
-    }
-    Closure& operator=(const Closure& c) {
-        if (this != &c) {
-            func = c.func;
-            env = c.env;
-        }
-        return *this;
-    }
-};
-
-struct StackItem;
-string listToString(deque<StackItem>* list);
-
-struct GCItem {
-    GCType type;
-    bool marked;
-    union {
-        string* strval;
-        Function* func;
-        Closure* closure;
-        deque<StackItem>* list;
-    };
-    GCItem(string* s) : type(STRING), strval(s) { }
-    GCItem(Function* f) : type(FUNCTION), func(f) { }
-    GCItem(Closure* c) : type(CLOSURE), closure(c) { }
-    GCItem(deque<StackItem>* l) : type(LIST), list(l) { }
-    GCItem(const GCItem& si) {
-        switch (si.type) {
-            case STRING: strval = si.strval; break;
-            case FUNCTION: func = si.func; break;
-            case CLOSURE: closure = si.closure; break;
-            case LIST: list = si.list; break;
-        }
-        type = si.type;
-    }
-    GCItem& operator=(const GCItem& si) {
-        if (this != &si) {
-            switch (si.type) {
-                case STRING: strval = si.strval; break;
-                case FUNCTION: func = si.func; break;
-                case CLOSURE: closure = si.closure; break;
-                case LIST: list = si.list; break;
-            }
-            type = si.type;
-        }
-        return *this;
-    }
-    string toString() {
-        switch (type) {
-            case STRING: return *(strval);
-            case FUNCTION: return "(func)" + func->name;
-            case CLOSURE: return "(closure)" + closure->func->name + ", " + to_string(closure->func->start_ip);
-            case LIST: return listToString(list);
-        }
-        return "(Err.)";
-    }
-};
+GCAllocator gc;
 
 struct StackItem {
     int type;
@@ -135,11 +40,11 @@ struct StackItem {
     }
     StackItem(int value) { intval = value; type = INTEGER; }
     StackItem(double value) { numval = value; type = NUMBER; }
-    StackItem(string value) { objval = new GCItem(new string(value)); type = OBJECT; }
     StackItem(bool balue) { boolval = balue; type = BOOLEAN; }
-    StackItem(Function* f) { objval = new GCItem(f); type = OBJECT; }
-    StackItem(Closure* c) { objval = new GCItem(c); type = OBJECT; }
-    StackItem(deque<StackItem>* l) { objval = new GCItem(l); type = OBJECT; }
+    StackItem(string value) { objval = gc.alloc(new string(value)); type = OBJECT; }
+    StackItem(Function* f) { objval = gc.alloc(f); type = OBJECT; }
+    StackItem(Closure* c) { objval = gc.alloc(c); type = OBJECT; }
+    StackItem(deque<StackItem>* l) { objval = gc.alloc(l); type = OBJECT; }
     StackItem(GCItem* i) { objval = i; type = OBJECT; }
     StackItem() { type = NIL; intval = -66; }
     StackItem(const StackItem& si) {
@@ -205,9 +110,8 @@ struct StackItem {
     }
     StackItem& add(StackItem& rhs) {
         if (type == OBJECT || rhs.type == OBJECT) {
-            cout<<toString()<<" + "<<rhs.toString()<<"? "<<endl;
-            objval = new GCItem(new string(this->toString() + rhs.toString()));
-            type == OBJECT;
+            objval = gc.alloc(new string(this->toString() + rhs.toString()));
+            type = OBJECT;
         } else {
             double v = rhs.type == INTEGER ? rhs.intval:rhs.numval;
             switch (type) {
@@ -219,9 +123,6 @@ struct StackItem {
                 } break;
                 case BOOLEAN: {
                     boolval += v;
-                } break;
-                case STRING: {
-                    objval->strval->append(rhs.toString());
                 } break;
             }
         }
@@ -248,6 +149,13 @@ struct StackItem {
     }
     StackItem& mul(StackItem& rhs) {
         if (rhs.type == STRING) {
+            return *this;
+        } else if (type == STRING && rhs.type == INTEGER) {
+            string* ns = new string(*objval->strval);
+            for (int i = 1; i < rhs.numval; i++) {
+                *ns += (*objval->strval);
+            }
+            objval->strval = ns;
             return *this;
         } else {
             double v = rhs.type == INTEGER ? rhs.intval:rhs.numval;
@@ -304,22 +212,41 @@ string listToString(deque<StackItem>* list) {
 
 class ConstPool {
     private:
-        StackItem data[255];
+        StackItem* data;
         int n;
+        int maxN;
+        void grow() {
+            auto tmp = data;
+            data = new StackItem[2*maxN];
+            for (int i = 0; i < n; i++) {
+                data[i] = tmp[i];
+            }
+            delete [] tmp;
+            maxN *= 2;
+        }
     public:
         ConstPool() {
             n = 0;
+            maxN = 255;
+            data = new StackItem[maxN];
+        }
+        ~ConstPool() {
+            delete [] data;
         }
         ConstPool(const ConstPool& cp) {
             n = cp.n;
+            maxN = cp.maxN;
+            data = new StackItem[maxN];
             for (int i = 0; i < n; i++)
                 data[i] = cp.data[i];
         }
         ConstPool& operator=(const ConstPool& cp) {
             if (this != &cp) {
                 n = cp.n;
-            for (int i = 0; i < n; i++)
-                data[i] = cp.data[i];
+                maxN = cp.maxN;
+                data = new StackItem[maxN];
+                for (int i = 0; i < n; i++)
+                    data[i] = cp.data[i];
             }
             return *this;
         }

@@ -9,13 +9,15 @@ static const int MAX_OP_STACK = 1255;
 static const int MAX_CALL_STACK = 1255;
 
 struct ActivationRecord {
+    int cpIdx;
     int num_args;
     int num_locals;
     int returnAddress;
     StackItem locals[255];
     ActivationRecord* control;
     ActivationRecord* access;
-    ActivationRecord(int ra = 0, int numArgs = 0, ActivationRecord* calling = nullptr, ActivationRecord* defining = nullptr) {
+    ActivationRecord(int n = -1, int ra = 0, int numArgs = 0, ActivationRecord* calling = nullptr, ActivationRecord* defining = nullptr) {
+        cpIdx = n;
         returnAddress = ra;
         num_args = numArgs;
         control = calling;
@@ -23,7 +25,7 @@ struct ActivationRecord {
     }
 };
 
-
+const int BLOCK_CPIDX = -420;
 
 class VM {
     private:
@@ -55,19 +57,28 @@ class VM {
         void closeOver(Instruction& inst) {
             int func_id = inst.operand[0].intval;
             int depth = inst.operand[1].intval;
-            //cout<<"Closing over "<<depth<<" defining env's"<<endl;
-            //stash current activation record as closures defining env
+            //First run through, we stash current activation record as closures defining env
+            //Subsequent invocations find the most recently created activation record for that function
+            ActivationRecord* closeOver = callstk;
+            string fn_name = constPool.get(func_id).objval->closure->func->name;
             if (constPool.get(func_id).objval->closure->env == nullptr) {
-                constPool.get(func_id).objval->closure->env = callstk; 
+                constPool.get(func_id).objval->closure->env = closeOver; 
+            } else {
+                auto x = callstk;
+                while (x != nullptr && x != globals) {
+                    if (x->cpIdx == func_id) {
+                        closeOver = x;
+                        break;
+                    }
+                    x = x->control;
+                }
+                if (x == nullptr || x == globals)
+                    closeOver = callstk;
             }
-            opstk[++sp] = StackItem(new GCItem(constPool.get(func_id).objval->closure));
-        }
-        void retProc() {
-            ip = callstk->returnAddress;
-            closeBlock();
+            opstk[++sp] = StackItem(gc.alloc(new Closure(constPool.get(func_id).objval->closure->func, closeOver)));
         }
         void openBlock(Instruction& inst) {
-            callstk = new ActivationRecord(ip, inst.operand[1].intval, callstk, callstk);
+            callstk = new ActivationRecord(BLOCK_CPIDX, ip, inst.operand[1].intval, callstk, callstk);
         }
         void closeBlock() {
             if (callstk != nullptr && callstk->control != nullptr)
@@ -88,12 +99,16 @@ class VM {
             int lexDepth = inst.operand[2].intval;
             int cpIdx = inst.operand[0].intval;
             Closure* close = getProcedureForCall(cpIdx);
-            callstk = new ActivationRecord(returnAddr, numArgs, callstk, close->env);            
+            callstk = new ActivationRecord(cpIdx, returnAddr, numArgs, callstk, close->env);            
             for (int i = numArgs; i > 0; i--) {
                 callstk->locals[i] = opstk[sp--];
             }
             callstk->returnAddress = returnAddr;
             ip = close->func->start_ip;
+        }
+        void retProc() {
+            ip = callstk->returnAddress;
+            closeBlock();
         }
         void storeGlobal() {
             StackItem t = opstk[sp--];
@@ -155,6 +170,27 @@ class VM {
         void uncondBranch(Instruction& inst) {
             ip = inst.operand[0].intval;
         }
+        void appendList() {
+            StackItem item = opstk[sp--];
+            if (top().type == OBJECT && top().objval->type == LIST)
+                top().objval->list->push_back(item);
+        }
+        void pushList() {
+            StackItem item = opstk[sp--];
+            if (top().type == OBJECT && top().objval->type == LIST)
+                top().objval->list->push_front(item);
+            sp--;
+        }
+        void listLength() {
+            if (top().type == OBJECT && top().objval->type == LIST)
+                opstk[++sp] = ((double)opstk[sp--].objval->list->size());
+        }
+        void haltvm() {
+            running = false;
+        }
+        void printTopOfStack() {
+            cout<<opstk[sp--].toString()<<endl;
+        }
         void unaryOperation(Instruction& inst) {
             switch (inst.operand[0].intval) {
                 case VM_NEG: { 
@@ -193,7 +229,14 @@ class VM {
                 case VM_NEQ: {
                     top(1).boolval = (top(1).lessThan(top(0)) || top(0).lessThan(top(1)));
                 } break;
+                case VM_LOGIC_AND: {
+                    top(1).boolval = (top(1).boolval && top(0).boolval);
+                } break;
+                case VM_LOGIC_OR: {
+                    top(1).boolval = (top(1).boolval || top(0).boolval);
+                } break;
             }
+            top(1).type = BOOLEAN;
             sp--;
         }
         void arithmeticOperation(Instruction& inst) {
@@ -218,27 +261,6 @@ class VM {
             }
             sp--;
         }
-        void appendList() {
-            StackItem item = opstk[sp--];
-            if (top().type == OBJECT && top().objval->type == LIST)
-                top().objval->list->push_back(item);
-        }
-        void pushList() {
-            StackItem item = opstk[sp--];
-            if (top().type == OBJECT && top().objval->type == LIST)
-                top().objval->list->push_front(item);
-            sp--;
-        }
-        void listLength() {
-            if (top().type == OBJECT && top().objval->type == LIST)
-                opstk[++sp] = ((double)opstk[sp--].objval->list->size());
-        }
-        void haltvm() {
-            running = false;
-        }
-        void printTopOfStack() {
-            cout<<opstk[sp--].toString()<<endl;
-        }
         void execute(Instruction& inst) {
             switch (inst.op) {
                 case list_append: { appendList();   } break;
@@ -248,6 +270,8 @@ class VM {
                 case retfun:   { retProc(); } break;
                 case entblk:   { openBlock(inst); } break;
                 case retblk:   { closeBlock(); } break;
+                case incr:      { top(0).numval += 1; } break;
+                case decr:      { top(0).numval -= 1; } break;
                 case jump:     { uncondBranch(inst); } break;
                 case brf:      { branchOnFalse(inst); } break;
                 case binop:    { binaryOperation(inst); } break;
@@ -335,7 +359,7 @@ class VM {
             sp = 0;
             fp = 0;
             haltSentinel = Instruction(halt);
-            globals = new ActivationRecord(0, 0, nullptr, nullptr);
+            globals = new ActivationRecord(GLOBAL_SCOPE,0, 0, nullptr, nullptr);
             globals->access = globals;
             globals->control = globals;
             callstk = globals;

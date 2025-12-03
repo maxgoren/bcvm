@@ -10,6 +10,7 @@ using namespace std;
 class Lexer {
     private:
         CharBuffer* buffer;
+        bool in_comment;
         bool shouldSkip(char ch);
         Token makeLexToken(TKSymbol symbol, char* text, int length);
         Token nextToken();
@@ -29,7 +30,7 @@ Token Lexer::nextToken() {
     int last_match = 0;
     int match_len = 0;
     int len = 0;
-    bool inquote = false;
+    bool in_quote = false;
     int start = buffer->markStart();
     for (char p = buffer->get(); !buffer->done(); buffer->advance(), len++) {
         state = matrix[state][buffer->get()];
@@ -39,9 +40,9 @@ Token Lexer::nextToken() {
         }
 
         if (buffer->get() == '"') {
-            if (!inquote) inquote = true;
+            if (!in_quote) in_quote = true;
             else {
-                inquote = false;
+                in_quote = false;
                 buffer->advance();
                 break;
             }
@@ -62,14 +63,20 @@ bool Lexer::shouldSkip(char c) {
 
 vector<Token> Lexer::lex(CharBuffer* buff) {
     buffer = buff;
+    in_comment = false;
     vector<Token> tokens;
     for (; !buffer->done();) { 
         while (shouldSkip(buffer->get())) buffer->advance();
         Token next;
         next = nextToken();
-        if (next.getSymbol() != TK_EOI) {
+        if (next.getSymbol() == TK_OPEN_COMMENT) {
+            in_comment = true;
+        }
+        if (next.getSymbol() != TK_EOI && !in_comment) {
             tokens.push_back(next);
         } else {
+            if (next.getSymbol() == TK_CLOSE_COMMENT)
+                in_comment = false;
             buffer->advance();
         }
     }
