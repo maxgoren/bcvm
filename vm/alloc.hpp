@@ -1,5 +1,6 @@
 #ifndef gc_hpp
 #define gc_hpp
+#include <memory>
 #include <iostream>
 #include <unordered_set>
 #include <list>
@@ -40,7 +41,7 @@ struct ActivationRecord;
 
 struct Closure {
     Function* func;
-    ActivationRecord* env;
+    shared_ptr<ActivationRecord> env;
     Closure(Function* f, ActivationRecord* e) : func(f), env(e) { }
     Closure(Function* f) : func(f), env(nullptr) { }
     Closure(const Closure& c) {
@@ -121,6 +122,7 @@ class GCAllocator {
                 free_list.pop_back();
                 x->type = STRING;
                 x->strval = s;
+                cout<<"From free list"<<endl;
             } else {
                 x = new GCItem(s);
             }
@@ -134,6 +136,7 @@ class GCAllocator {
                 free_list.pop_back();
                 x->type = CLOSURE;
                 x->closure = c;
+                cout<<"From free list"<<endl;
             } else {
                 x = new GCItem(c);
             }
@@ -147,6 +150,7 @@ class GCAllocator {
                 free_list.pop_back();
                 x->type = FUNCTION;
                 x->func = f;
+                cout<<"From free list"<<endl;
             } else {
                 x = new GCItem(f);
             }
@@ -160,6 +164,7 @@ class GCAllocator {
                 free_list.pop_back();
                 x->type = LIST;
                 x->list = l;
+                cout<<"From free list"<<endl;
             } else {
                 x = new GCItem(l);
             }

@@ -257,6 +257,9 @@ class ConstPool {
         StackItem& get(int indx) {
             return data[indx];
         }
+        int size() {
+            return n;
+        }
 };
 
 #endif

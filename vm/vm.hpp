@@ -1,6 +1,7 @@
 #ifndef vm_hpp
 #define vm_hpp
 #include <vector>
+#include <memory>
 #include "stackitem.hpp"
 #include "instruction.hpp"
 using namespace std;
@@ -14,9 +15,9 @@ struct ActivationRecord {
     int num_locals;
     int returnAddress;
     StackItem locals[255];
-    ActivationRecord* control;
-    ActivationRecord* access;
-    ActivationRecord(int n = -1, int ra = 0, int numArgs = 0, ActivationRecord* calling = nullptr, ActivationRecord* defining = nullptr) {
+    shared_ptr<ActivationRecord> control;
+    shared_ptr<ActivationRecord> access;
+    ActivationRecord(int n = -1, int ra = 0, int numArgs = 0, shared_ptr<ActivationRecord> calling = nullptr, shared_ptr<ActivationRecord> defining = nullptr) {
         cpIdx = n;
         returnAddress = ra;
         num_args = numArgs;
@@ -24,7 +25,6 @@ struct ActivationRecord {
         access = defining;
     }
 };
-
 
 class GarbageCollector {
     private:
@@ -39,17 +39,19 @@ class GarbageCollector {
                 if (curr != nullptr && curr->marked == false) {
                     curr->marked = true;
                     switch (curr->type) {
-                        case STRING: { } break;
-                        case FUNCTION: { } break;
+                        case STRING: { cout<<"Marked string: ["<<*curr->strval<<"]"<<endl; } break;
+                        case FUNCTION: { cout<<"Marked function: ["<<curr->func->name<<"]"<<endl; } break;
                         case CLOSURE: {
+                            cout<<"Marked closure"<<endl;
                             int numLocals = curr->closure->func->scope->symTable.size();
-                            for (int i = 0; i < numLocals; i++) {
+                            for (int i = 0; i < 255; i++) {
                                 if (curr->closure->env->locals[i].type == OBJECT) {
                                     sf.push_back(curr->closure->env->locals[i].objval);
                                 }
                             }
                         } break;
                         case LIST: {      
+                            cout<<"Marked list: "<<curr->toString()<<endl;
                             for (auto & it : *curr->list) {
                                 if (it.type == OBJECT && it.objval != nullptr) {
                                     sf.push_back(it.objval);
@@ -75,10 +77,16 @@ class GarbageCollector {
             return gc.getLiveList().size() == GC_LIMIT;
         }
         void mark(ActivationRecord* callstk, ConstPool& constPool) {
-            for (auto & it = callstk; it != it->control->control; it = it->control) {
-                for (int i = 0; i < constPool.get(it->cpIdx).objval->closure->func->scope->symTable.size(); i++) 
+            cout<<"start mark phase"<<endl;
+            for (auto & it = callstk; it != nullptr; it = it->control.get()) {
+                for (int i = 0; i < 255; i++) {
                     markItem(it->locals[i]);
+                }
             }
+            for (int i = 0; i < constPool.size(); i++) {
+                markItem(constPool.get(i));
+            }
+            cout<<"Marking complete."<<endl;
         }
         void sweep() {
             unordered_set<GCItem*> nextGen;
@@ -91,11 +99,15 @@ class GarbageCollector {
                 }
             }
             gc.getLiveList().swap(nextGen);
-            cout<<"Collecting: "<<toFree.size()<<endl;
+            cout<<"Collecting: "<<toFree.size()<<", lives: "<<gc.getLiveList().size()<<","<<nextGen.size()<<endl;
             for (auto it : toFree) {
                 gc.getFreeList().push_back(it);
             }
             GC_LIMIT *= 2;
+        }
+        void run(ActivationRecord* callstk, ConstPool& constPool) {
+            mark(callstk, constPool);
+            sweep();
         }
 };
 
@@ -113,15 +125,15 @@ class VM {
         int fp;
         ConstPool constPool;
         GarbageCollector collector;
-        ActivationRecord *callstk;
-        ActivationRecord *globals;
+        shared_ptr<ActivationRecord> callstk;
+        shared_ptr<ActivationRecord> globals;
         StackItem opstk[MAX_OP_STACK];
         ActivationRecord* walkChain(int d) {
-            if (d == GLOBAL_SCOPE) return globals;
-            if (d == LOCAL_SCOPE) return callstk;
-            auto x = callstk;
+            if (d == GLOBAL_SCOPE) return globals.get();
+            if (d == LOCAL_SCOPE) return callstk.get();
+            auto x = callstk.get();
             while (x != nullptr && d > 0) {
-                x = x->access;
+                x = x->access.get();
                 d--;
               //  cout<<".";
             }
@@ -135,26 +147,27 @@ class VM {
             int depth = inst.operand[1].intval;
             //First run through, we stash current activation record as closures defining env
             //Subsequent invocations find the most recently created activation record for that function
-            ActivationRecord* closeOver = callstk;
+            ActivationRecord* closeOver = callstk.get();
             string fn_name = constPool.get(func_id).objval->closure->func->name;
             if (constPool.get(func_id).objval->closure->env == nullptr) {
-                constPool.get(func_id).objval->closure->env = closeOver; 
+                constPool.get(func_id).objval->closure->env = callstk; 
             } else {
-                auto x = callstk;
-                while (x != nullptr && x != globals) {
+                auto x = callstk.get();
+                while (x != nullptr && x != globals.get()) {
                     if (x->cpIdx == func_id) {
                         closeOver = x;
                         break;
                     }
-                    x = x->control;
+                    x = x->control.get();
                 }
-                if (x == nullptr || x == globals)
-                    closeOver = callstk;
+                if (x == nullptr || x == globals.get())
+                    closeOver = callstk.get();
+                else closeOver = x;
             }
             opstk[++sp] = StackItem(gc.alloc(new Closure(constPool.get(func_id).objval->closure->func, closeOver)));
         }
         void openBlock(Instruction& inst) {
-            callstk = new ActivationRecord(BLOCK_CPIDX, ip, inst.operand[1].intval, callstk, callstk);
+            callstk = make_shared<ActivationRecord>(BLOCK_CPIDX, ip, inst.operand[1].intval, callstk, callstk);
         }
         void closeBlock() {
             if (callstk != nullptr && callstk->control != nullptr)
@@ -175,7 +188,7 @@ class VM {
             int lexDepth = inst.operand[2].intval;
             int cpIdx = inst.operand[0].intval;
             Closure* close = getProcedureForCall(cpIdx);
-            callstk = new ActivationRecord(cpIdx, returnAddr, numArgs, callstk, close->env);            
+            callstk = make_shared<ActivationRecord>(cpIdx, returnAddr, numArgs, callstk, close->env);            
             for (int i = numArgs; i > 0; i--) {
                 callstk->locals[i] = opstk[sp--];
             }
@@ -185,6 +198,7 @@ class VM {
         void retProc() {
             ip = callstk->returnAddress;
             closeBlock();
+            collector.run(callstk.get(), constPool);
         }
         void storeGlobal() {
             StackItem t = opstk[sp--];
@@ -435,9 +449,7 @@ class VM {
             sp = 0;
             fp = 0;
             haltSentinel = Instruction(halt);
-            globals = new ActivationRecord(GLOBAL_SCOPE,0, 0, nullptr, nullptr);
-            globals->access = globals;
-            globals->control = globals;
+            globals =  make_shared<ActivationRecord>(GLOBAL_SCOPE,0, 0, nullptr, nullptr);
             callstk = globals;
         }
         void setConstPool(ConstPool& cp) {
@@ -463,8 +475,7 @@ class VM {
                 }
             }
             if (collector.ready()) {
-                collector.mark(callstk, constPool);
-                collector.sweep();
+                collector.run(callstk.get(), constPool);
             }
         }
 };
