@@ -28,8 +28,6 @@
 {"return", TK_RETURN}
 {"println", TK_PRINTLN}
 {"private", TK_PRIVATE}
-{"[A-Za-z][A-Za-z0-9_]*", TK_ID}
-{"\"(.+)\"", TK_STRING}
 {"\(", TK_LPAREN}
 {"\)", TK_RPAREN}
 {"\{", TK_LCURLY}
@@ -61,6 +59,8 @@
 {"->", TK_PRODUCE}
 {"[,]", TK_COMMA}
 {"[.]", TK_PERIOD}
+{"[A-Za-z][A-Za-z0-9_]*", TK_ID}
+{"\"(.+)\"", TK_STRING}
 {"[0-9]+([.][0-9]+)*", TK_NUM}
 {"\{\*", TK_OPEN_COMMENT}
 {"\*\}", TK_CLOSE_COMMENT}

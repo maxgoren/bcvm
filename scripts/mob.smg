@@ -14,7 +14,7 @@ fn A(var k, var x1, var x2, var x3, var x4, var x5) {
     return B(); 
 } 
 let k := 5;
-while (k <= 15) {
+while (k <= 10) {
     println k + ": " + A(k, delay(1), delay(-1), delay(-1), delay(1), delay(0)); 
     k := k + 1;
 }

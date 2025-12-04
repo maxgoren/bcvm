@@ -25,10 +25,85 @@ struct ActivationRecord {
     }
 };
 
+
+class GarbageCollector {
+    private:
+        int GC_LIMIT;
+        void markObject(GCItem* object) {
+            if (object == nullptr)
+                return;
+            vector<GCItem*> sf;
+            sf.push_back(object);
+            while (!sf.empty()) {
+                GCItem* curr = sf.back(); sf.pop_back();
+                if (curr != nullptr && curr->marked == false) {
+                    curr->marked = true;
+                    switch (curr->type) {
+                        case STRING: { } break;
+                        case FUNCTION: { } break;
+                        case CLOSURE: {
+                            int numLocals = curr->closure->func->scope->symTable.size();
+                            for (int i = 0; i < numLocals; i++) {
+                                if (curr->closure->env->locals[i].type == OBJECT) {
+                                    sf.push_back(curr->closure->env->locals[i].objval);
+                                }
+                            }
+                        } break;
+                        case LIST: {      
+                            for (auto & it : *curr->list) {
+                                if (it.type == OBJECT && it.objval != nullptr) {
+                                    sf.push_back(it.objval);
+                                }
+                            }
+                        } break;
+                        default:
+                            break;
+                    }
+                }   
+            }
+        }
+        void markItem(StackItem& item) {
+            if (item.type == OBJECT) {
+                markObject(item.objval);
+            }
+        }
+    public:
+        GarbageCollector() {
+            GC_LIMIT = 50;
+        }
+        bool ready() {
+            return gc.getLiveList().size() == GC_LIMIT;
+        }
+        void mark(ActivationRecord* callstk, ConstPool& constPool) {
+            for (auto & it = callstk; it != it->control->control; it = it->control) {
+                for (int i = 0; i < constPool.get(it->cpIdx).objval->closure->func->scope->symTable.size(); i++) 
+                    markItem(it->locals[i]);
+            }
+        }
+        void sweep() {
+            unordered_set<GCItem*> nextGen;
+            unordered_set<GCItem*> toFree;
+            for (auto & it : gc.getLiveList()) {
+                if (it->marked == true) {
+                    nextGen.insert(it);
+                } else {
+                    toFree.insert(it);
+                }
+            }
+            gc.getLiveList().swap(nextGen);
+            cout<<"Collecting: "<<toFree.size()<<endl;
+            for (auto it : toFree) {
+                gc.getFreeList().push_back(it);
+            }
+            GC_LIMIT *= 2;
+        }
+};
+
 const int BLOCK_CPIDX = -420;
 
 class VM {
     private:
+        friend class GarbageCollector;
         bool running = false;
         int verbLev;
         Instruction haltSentinel;
@@ -37,6 +112,7 @@ class VM {
         int sp;
         int fp;
         ConstPool constPool;
+        GarbageCollector collector;
         ActivationRecord *callstk;
         ActivationRecord *globals;
         StackItem opstk[MAX_OP_STACK];
@@ -386,8 +462,13 @@ class VM {
                     cout<<"================"<<endl;
                 }
             }
+            if (collector.ready()) {
+                collector.mark(callstk, constPool);
+                collector.sweep();
+            }
         }
 };
+
 
 
 #endif

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <deque>
-#include "gc.hpp"
+#include "alloc.hpp"
 using namespace std;
 
 

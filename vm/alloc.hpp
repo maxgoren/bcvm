@@ -107,6 +107,7 @@ struct GCItem {
 
 class GCAllocator {
     private:
+        friend class GarbageCollector;
         unordered_set<GCItem*> live_items;
         list<GCItem*> free_list;
     public:
@@ -167,6 +168,9 @@ class GCAllocator {
         }
         unordered_set<GCItem*>& getLiveList() {
             return live_items;
+        }
+        list<GCItem*> getFreeList() {
+            return free_list;
         }
 };
 
