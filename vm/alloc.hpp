@@ -1,6 +1,5 @@
 #ifndef gc_hpp
 #define gc_hpp
-#include <memory>
 #include <iostream>
 #include <unordered_set>
 #include <list>
@@ -41,7 +40,7 @@ struct ActivationRecord;
 
 struct Closure {
     Function* func;
-    shared_ptr<ActivationRecord> env;
+    ActivationRecord* env;
     Closure(Function* f, ActivationRecord* e) : func(f), env(e) { }
     Closure(Function* f) : func(f), env(nullptr) { }
     Closure(const Closure& c) {

@@ -15,9 +15,9 @@ struct ActivationRecord {
     int num_locals;
     int returnAddress;
     StackItem locals[255];
-    shared_ptr<ActivationRecord> control;
-    shared_ptr<ActivationRecord> access;
-    ActivationRecord(int n = -1, int ra = 0, int numArgs = 0, shared_ptr<ActivationRecord> calling = nullptr, shared_ptr<ActivationRecord> defining = nullptr) {
+    ActivationRecord* control;
+    ActivationRecord* access;
+    ActivationRecord(int n = -1, int ra = 0, int numArgs = 0, ActivationRecord* calling = nullptr, ActivationRecord* defining = nullptr) {
         cpIdx = n;
         returnAddress = ra;
         num_args = numArgs;
@@ -78,7 +78,7 @@ class GarbageCollector {
         }
         void mark(ActivationRecord* callstk, ConstPool& constPool) {
             cout<<"start mark phase"<<endl;
-            for (auto & it = callstk; it != nullptr; it = it->control.get()) {
+            for (auto & it = callstk; it != nullptr; it = it->control) {
                 for (int i = 0; i < 255; i++) {
                     markItem(it->locals[i]);
                 }
@@ -125,15 +125,15 @@ class VM {
         int fp;
         ConstPool constPool;
         GarbageCollector collector;
-        shared_ptr<ActivationRecord> callstk;
-        shared_ptr<ActivationRecord> globals;
+        ActivationRecord* callstk;
+        ActivationRecord* globals;
         StackItem opstk[MAX_OP_STACK];
         ActivationRecord* walkChain(int d) {
-            if (d == GLOBAL_SCOPE) return globals.get();
-            if (d == LOCAL_SCOPE) return callstk.get();
-            auto x = callstk.get();
+            if (d == GLOBAL_SCOPE) return globals;
+            if (d == LOCAL_SCOPE) return callstk;
+            auto x = callstk;
             while (x != nullptr && d > 0) {
-                x = x->access.get();
+                x = x->access;
                 d--;
               //  cout<<".";
             }
@@ -147,27 +147,27 @@ class VM {
             int depth = inst.operand[1].intval;
             //First run through, we stash current activation record as closures defining env
             //Subsequent invocations find the most recently created activation record for that function
-            ActivationRecord* closeOver = callstk.get();
+            ActivationRecord* closeOver = callstk;
             string fn_name = constPool.get(func_id).objval->closure->func->name;
             if (constPool.get(func_id).objval->closure->env == nullptr) {
                 constPool.get(func_id).objval->closure->env = callstk; 
             } else {
-                auto x = callstk.get();
-                while (x != nullptr && x != globals.get()) {
+                auto x = callstk;
+                while (x != nullptr && x != globals) {
                     if (x->cpIdx == func_id) {
                         closeOver = x;
                         break;
                     }
-                    x = x->control.get();
+                    x = x->control;
                 }
-                if (x == nullptr || x == globals.get())
-                    closeOver = callstk.get();
+                if (x == nullptr || x == globals)
+                    closeOver = callstk;
                 else closeOver = x;
             }
             opstk[++sp] = StackItem(gc.alloc(new Closure(constPool.get(func_id).objval->closure->func, closeOver)));
         }
         void openBlock(Instruction& inst) {
-            callstk = make_shared<ActivationRecord>(BLOCK_CPIDX, ip, inst.operand[1].intval, callstk, callstk);
+            callstk = new ActivationRecord(BLOCK_CPIDX, ip, inst.operand[1].intval, callstk, callstk);
         }
         void closeBlock() {
             if (callstk != nullptr && callstk->control != nullptr)
@@ -188,7 +188,7 @@ class VM {
             int lexDepth = inst.operand[2].intval;
             int cpIdx = inst.operand[0].intval;
             Closure* close = getProcedureForCall(cpIdx);
-            callstk = make_shared<ActivationRecord>(cpIdx, returnAddr, numArgs, callstk, close->env);            
+            callstk = new ActivationRecord(cpIdx, returnAddr, numArgs, callstk, close->env);            
             for (int i = numArgs; i > 0; i--) {
                 callstk->locals[i] = opstk[sp--];
             }
@@ -198,7 +198,7 @@ class VM {
         void retProc() {
             ip = callstk->returnAddress;
             closeBlock();
-            collector.run(callstk.get(), constPool);
+            collector.run(callstk, constPool);
         }
         void storeGlobal() {
             StackItem t = opstk[sp--];
@@ -449,7 +449,7 @@ class VM {
             sp = 0;
             fp = 0;
             haltSentinel = Instruction(halt);
-            globals =  make_shared<ActivationRecord>(GLOBAL_SCOPE,0, 0, nullptr, nullptr);
+            globals =  new ActivationRecord(GLOBAL_SCOPE,0, 0, nullptr, nullptr);
             callstk = globals;
         }
         void setConstPool(ConstPool& cp) {
@@ -475,7 +475,7 @@ class VM {
                 }
             }
             if (collector.ready()) {
-                collector.run(callstk.get(), constPool);
+                collector.run(callstk, constPool);
             }
         }
 };
