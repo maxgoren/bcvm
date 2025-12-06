@@ -13,7 +13,8 @@ enum VMInstruction {
     call, retfun, 
     entblk, retblk,
     jump, brf, incr, decr,
-    binop, unop, mkclosure, popstack,
+    binop, unop, mkclosure, 
+    defstruct, mkstruct, popstack,
     list_append, list_push, list_len,
     print, halt
 };

@@ -125,6 +125,14 @@ class Parser {
                 match(TK_SIZE);
                 match(TK_LPAREN);
                 match(TK_RPAREN);
+            } else if (expect(TK_NEW)) {
+                n = new astnode(BLESS_EXPR, current());
+                match(TK_NEW);
+                n->left = new astnode(ID_EXPR, current());
+                match(TK_ID);
+                match(TK_LPAREN);
+                n->right = argsList();
+                match(TK_RPAREN);
             }
             if (n != nullptr && (n->expr == ID_EXPR || n->expr == LIST_EXPR)) {
                 while (expect(TK_LPAREN) || expect(TK_LB) || expect(TK_PERIOD)) {
@@ -250,6 +258,14 @@ class Parser {
                     n = new astnode(PRINT_STMT, current());
                     match(TK_PRINTLN);
                     n->left = expression();
+                } break;
+                case TK_CLASS: {
+                    n = new astnode(DEF_CLASS_STMT, current());
+                    match(TK_CLASS);
+                    n->left = expression();
+                    match(TK_LCURLY);
+                    n->right = stmt_list();
+                    match(TK_RCURLY);
                 } break;
                 case TK_IF: {
                     n = new astnode(IF_STMT, current());

@@ -235,14 +235,36 @@ class VM {
                 cout<<"Stored upval at "<<t.intval<<" in scope "<<(inst.operand[0].intval)<<endl;
         }
         void loadIndexed(Instruction& inst) {
-            top(1) = (top(1).objval->list->at(top(0).numval));
-            sp--;
+            if (top(1).type == OBJECT) {
+                switch (top(1).objval->type) {
+                    case LIST:
+                        top(1) = (top(1).objval->list->at(top(0).numval)); break;
+                    case STRING: 
+                        top(1) = (top(1).objval->strval->at(top(0).numval)); break;
+                    case CLASS:
+                        top(1) = (top(1).objval->object->fields[top(0).numval]); break;
+                    default:
+                        break;
+                }
+                sp--;
+            }
         }
         void indexed_store(Instruction& inst) {
-            top(1).objval->list->at(top(0).numval) = top(2);
+            if (top(1).type == OBJECT) {
+                switch (top(1).objval->type) {
+                    case LIST:
+                        top(1).objval->list->at(top(0).numval) = top(2); break;
+                    /*case STRING: 
+                        top(1).objval->strval->at(top(0).numval) = top(2); break;*/
+                    case CLASS:
+                        top(1).objval->object->fields[top(0).numval] = top(2); break;
+                    default:
+                        break;
+                }
             top(2) = top(1);
             top(1) = top(0);
             sp--;
+            }
         }
         void loadConst(Instruction& inst) {
             if (inst.operand[0].type == INTEGER) {

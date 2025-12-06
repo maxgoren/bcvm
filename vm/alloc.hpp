@@ -7,7 +7,7 @@
 using namespace std;
 
 enum GCType {
-    STRING, FUNCTION, CLOSURE, LIST
+    STRING, FUNCTION, CLOSURE, LIST, CLASS, NILPTR
 };
 
 struct Scope;
@@ -58,6 +58,18 @@ struct Closure {
 
 struct StackItem;
 
+
+struct ClassObject {
+    string name;
+    StackItem fields[MAX_LOCALS]; 
+    bool instantiated;
+    Scope* scope;
+    ClassObject(string n = "",  Scope* s = nullptr) {
+        name = n;
+        scope = s;
+    }
+};
+
 string listToString(deque<StackItem>* list);
 
 struct GCItem {
@@ -68,17 +80,21 @@ struct GCItem {
         Function* func;
         Closure* closure;
         deque<StackItem>* list;
+        ClassObject* object;
     };
     GCItem(string* s) : type(STRING), strval(s) { }
     GCItem(Function* f) : type(FUNCTION), func(f) { }
     GCItem(Closure* c) : type(CLOSURE), closure(c) { }
     GCItem(deque<StackItem>* l) : type(LIST), list(l) { }
+    GCItem(ClassObject* o) : type(CLASS), object(o) { } 
+    GCItem() : type(NILPTR) { }
     GCItem(const GCItem& si) {
         switch (si.type) {
             case STRING: strval = si.strval; break;
             case FUNCTION: func = si.func; break;
             case CLOSURE: closure = si.closure; break;
             case LIST: list = si.list; break;
+            case CLASS: object = si.object;
         }
         type = si.type;
     }
@@ -89,6 +105,7 @@ struct GCItem {
                 case FUNCTION: func = si.func; break;
                 case CLOSURE: closure = si.closure; break;
                 case LIST: list = si.list; break;
+                case CLASS: object = si.object;
             }
             type = si.type;
         }
@@ -100,10 +117,12 @@ struct GCItem {
             case FUNCTION: return "(func)" + func->name;
             case CLOSURE: return "(closure)" + closure->func->name + ", " + to_string(closure->func->start_ip);
             case LIST: return listToString(list);
+            case CLASS: return "(class)";
         }
         return "(nil)";
     }
 };
+
 
 class GCAllocator {
     private:

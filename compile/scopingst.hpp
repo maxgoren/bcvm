@@ -6,11 +6,14 @@
 #include <iostream>
 using namespace std;
 
+const unsigned int MAX_LOCALS = 255;
+
 struct Scope;
 
 enum SymTableType {
     LOCALVAR = 1,
-    FUNCVAR = 2
+    FUNCVAR = 2,
+    CLASSVAR = 3
 };
 
 struct SymbolTableEntry {
@@ -20,7 +23,7 @@ struct SymbolTableEntry {
     int depth;
     int constPoolIndex;
     int lineNum;
-    SymbolTableEntry(string n, int adr, int cpi, int d) : type(2), addr(adr), name(n), depth(d), constPoolIndex(cpi), lineNum(0) { }
+    SymbolTableEntry(string n, int adr, int cpi, int t, int d) : type(t), addr(adr), name(n), depth(d), constPoolIndex(cpi), lineNum(0) { }
     SymbolTableEntry(string n, int adr, int d) : type(1), name(n), addr(adr), depth(d), constPoolIndex(-1), lineNum(0) { }
     SymbolTableEntry() : type(0), addr(-1), constPoolIndex(-1), lineNum(0) { }
     SymbolTableEntry(const SymbolTableEntry& e) {
@@ -52,7 +55,7 @@ struct SymbolTableEntry {
 
 
 struct BlockScope {
-    SymbolTableEntry data[255];
+    SymbolTableEntry data[MAX_LOCALS];
     int n = 0;
     BlockScope() {
         n = 0;
@@ -125,6 +128,20 @@ class ScopingST {
         ConstPool& getConstPool() {
             return constPool;
         }
+        void openObjectScope(string name) {
+            if (st->symTable.find(name) != st->symTable.end()) {
+                Scope* ns = constPool.get(st->symTable[name].constPoolIndex).objval->object->scope;
+                st = ns;
+            } else {
+                Scope* ns = new Scope;
+                ns->enclosing = st;
+                ClassObject* obj = new ClassObject(name, ns);
+                int constIdx = constPool.insert(obj);
+                int envAddr = nextAddr();
+                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(st+1)));
+                st = ns;
+            }
+        }
         void openFunctionScope(string name, int L1) {
             if (st->symTable.find(name) != st->symTable.end()) {
                 Scope* ns = constPool.get(st->symTable[name].constPoolIndex).objval->closure->func->scope;
@@ -136,7 +153,7 @@ class ScopingST {
                 Function* f = makeFunction(name, L1, ns);
                 int constIdx = constPool.insert(new Closure(f));
                 int envAddr = nextAddr();
-                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, depth(st)+1));
+                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, FUNCVAR, depth(st)+1));
                 st = ns;
             }
         }

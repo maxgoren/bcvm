@@ -24,6 +24,11 @@ class STBuilder {
             if (t == nullptr)
                 return;
             switch (t->stmt) {
+                case DEF_CLASS_STMT: {
+                    symTable->openFunctionScope(t->left->token.getString(), -1);
+                    buildSymbolTable(t->right);
+                    symTable->closeScope();
+                } break;
                 case DEF_STMT: {
                     cout<<"Open scope."<<endl;
                     symTable->openFunctionScope(t->token.getString(), -1);
@@ -105,6 +110,10 @@ class STBuilder {
                     symTable->closeScope();
                     buildSymbolTable(t->next);
                     return;
+                } break;
+                case BLESS_EXPR: {
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
                 } break;
                 default: break;
             }

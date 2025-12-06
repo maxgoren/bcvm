@@ -262,6 +262,9 @@ class  ByteCodeGenerator {
             restore();
             emitStoreFuncInEnvironment(n, false);            
         }
+        void emitObjectDef(astnode* n) {
+            
+        }
         void emitStoreFuncInEnvironment(astnode* n, bool isLambda) {
             string name = n->token.getString();
             SymbolTableEntry fn_info = symTable.lookup(name, n->token.lineNumber());
@@ -328,6 +331,7 @@ class  ByteCodeGenerator {
         }
         void genStatement(astnode* n, bool needLvalue) {
             switch (n->stmt) {
+                case DEF_CLASS_STMT: { emitObjectDef(n); } break;
                 case DEF_STMT:    { emitFuncDef(n); } break;
                 case BLOCK_STMT:  { emitBlock(n);   } break;
                 case IF_STMT:     { emitIfStmt(n);   } break;
