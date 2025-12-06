@@ -57,18 +57,7 @@ struct Closure {
 };
 
 struct StackItem;
-
-
-struct ClassObject {
-    string name;
-    StackItem fields[MAX_LOCALS]; 
-    bool instantiated;
-    Scope* scope;
-    ClassObject(string n = "",  Scope* s = nullptr) {
-        name = n;
-        scope = s;
-    }
-};
+struct ClassObject;
 
 string listToString(deque<StackItem>* list);
 

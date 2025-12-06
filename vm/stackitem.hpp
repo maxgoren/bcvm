@@ -202,6 +202,17 @@ struct StackItem {
     }
 };
 
+struct ClassObject {
+    string name;
+    StackItem fields[255]; 
+    bool instantiated;
+    Scope* scope;
+    ClassObject(string n = "",  Scope* s = nullptr) {
+        name = n;
+        scope = s;
+    }
+};
+
 string listToString(deque<StackItem>* list) {
         string str = "[";
         for (auto m : *list) {

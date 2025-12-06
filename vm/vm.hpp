@@ -135,7 +135,6 @@ class VM {
             while (x != nullptr && d > 0) {
                 x = x->access;
                 d--;
-              //  cout<<".";
             }
             return x;
         }
@@ -198,7 +197,6 @@ class VM {
         void retProc() {
             ip = callstk->returnAddress;
             closeBlock();
-            collector.run(callstk, constPool);
         }
         void storeGlobal() {
             StackItem t = opstk[sp--];
@@ -495,9 +493,6 @@ class VM {
                     printCallStack();
                     cout<<"================"<<endl;
                 }
-            }
-            if (collector.ready()) {
-                collector.run(callstk, constPool);
             }
         }
 };

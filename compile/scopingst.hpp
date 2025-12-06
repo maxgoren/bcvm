@@ -102,6 +102,7 @@ class ScopingST {
         Scope* st;
         ConstPool constPool;
         SymbolTableEntry nfSentinel;
+        unordered_map<string, ClassObject*> objectDefs;
         int nextAddr() {
             int na = st->symTable.size()+1;
             return na;
@@ -136,6 +137,7 @@ class ScopingST {
                 Scope* ns = new Scope;
                 ns->enclosing = st;
                 ClassObject* obj = new ClassObject(name, ns);
+                objectDefs.insert(make_pair(name, obj));
                 int constIdx = constPool.insert(obj);
                 int envAddr = nextAddr();
                 st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(st+1)));

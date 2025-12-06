@@ -217,6 +217,20 @@ class  ByteCodeGenerator {
             restore();
             emitStoreFuncInEnvironment(n, true);
         }
+        void emitBlessExpr(astnode* n) {
+            cout<<"Let their be life..."<<endl;
+            genCode(n->left, false);
+            int L1 = skipEmit(0);
+            skipEmit(1);
+            int i = 0;
+            for (auto x = n->right; x != nullptr; x = x->next) {
+                genCode(x, false);
+                emit(Instruction(stfield, ++i));
+            }
+            skipTo(L1);
+            emit(Instruction(mkstruct, i));
+            restore();
+        }
         void emitFunctionCall(astnode* n) {
             if (noisey) cout<<"Compiling Function Call."<<endl;
             SymbolTableEntry fn_info = symTable.lookup(n->left->token.getString(), n->left->token.lineNumber());
@@ -261,9 +275,6 @@ class  ByteCodeGenerator {
             emit(Instruction(jump, cpos));
             restore();
             emitStoreFuncInEnvironment(n, false);            
-        }
-        void emitObjectDef(astnode* n) {
-            
         }
         void emitStoreFuncInEnvironment(astnode* n, bool isLambda) {
             string name = n->token.getString();
@@ -331,7 +342,7 @@ class  ByteCodeGenerator {
         }
         void genStatement(astnode* n, bool needLvalue) {
             switch (n->stmt) {
-                case DEF_CLASS_STMT: { emitObjectDef(n); } break;
+                case DEF_CLASS_STMT: { /* (-,-) */ } break;
                 case DEF_STMT:    { emitFuncDef(n); } break;
                 case BLOCK_STMT:  { emitBlock(n);   } break;
                 case IF_STMT:     { emitIfStmt(n);   } break;
@@ -354,6 +365,7 @@ class  ByteCodeGenerator {
                 case LISTCON_EXPR:   { emitListConstructor(n); } break;
                 case SUBSCRIPT_EXPR: { emitSubscript(n, needLvalue); } break;
                 case LIST_EXPR: { emitListOperation(n); } break;
+                case BLESS_EXPR: { emitBlessExpr(n); } break;
                 default:
                     break;
             }
