@@ -395,6 +395,12 @@ class VM {
                 case label: { /* nop() */ } break;
                 case popstack:  { sp--; } break; 
                 case mkclosure: { closeOver(inst); } break;
+                case mkstruct:  { 
+                    ClassObject* master = constPool.get(inst.operand[0].intval).objval->object;
+                    ClassObject* clone = new ClassObject(master->name, master->scope);
+                    clone->instantiated = true;
+                    opstk[++sp] = new GCItem(clone); 
+                } break;
                 default:
                     break;
             }       

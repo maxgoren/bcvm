@@ -143,6 +143,7 @@ class  ByteCodeGenerator {
         void emitFieldAccess(astnode* n, bool isLvalue) {
             genCode(n->left, false);
             genCode(n->right, false);
+            emit(Instruction(isLvalue ? stfield:ldfield));
         }
         void emitSubscript(astnode* n, bool isLvalue) {
             if (n->token.getSymbol() == TK_PERIOD) {
@@ -212,7 +213,6 @@ class  ByteCodeGenerator {
         }
         void emitBlessExpr(astnode* n) {
             cout<<"Let their be life..."<<endl;
-            genCode(n->left, false);
             int L1 = skipEmit(0);
             skipEmit(1);
             int i = 0;
@@ -221,7 +221,9 @@ class  ByteCodeGenerator {
                 emit(Instruction(stfield, ++i));
             }
             skipTo(L1);
-            emit(Instruction(mkstruct, i));
+            string name = n->left->token.getString();
+            int cpIdx = symTable.lookupClass(name) == nullptr ? -1:symTable.lookupClass(name)->cpIdx;
+            emit(Instruction(mkstruct, cpIdx, i));
             restore();
         }
         void emitFunctionCall(astnode* n) {
@@ -254,11 +256,9 @@ class  ByteCodeGenerator {
             int L1 = skipEmit(0);
             skipEmit(1);
             string name = n->left->token.getString();
-            emit(Instruction(defstruct, name, L1+1));
-            symTable.openObjectScope(name);
-            genCode(n->right, false);
+            ClassObject* ent = symTable.lookupClass(name);
+            emit(Instruction(defstruct, ent->cpIdx, L1+1));
             int cpos = skipEmit(0);
-            symTable.closeScope();
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();

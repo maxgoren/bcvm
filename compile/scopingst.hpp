@@ -132,15 +132,16 @@ class ScopingST {
         }
         void openObjectScope(string name) {
             if (st->symTable.find(name) != st->symTable.end()) {
-                Scope* ns = objectDefs[name]->scope; //constPool.get(st->symTable[name].constPoolIndex).objval->object->scope;
+                Scope* ns = objectDefs[name]->scope;
                 st = ns;
             } else {
                 Scope* ns = new Scope;
                 ns->enclosing = st;
                 ClassObject* obj = new ClassObject(name, ns);
                 objectDefs.insert(make_pair(name, obj));
-                int constIdx = constPool.insert(obj);
+                int constIdx = constPool.insert(gc.alloc(obj));
                 int envAddr = nextAddr();
+                objectDefs[name]->cpIdx = constIdx;
                 st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(st)+1));
                 st = ns;
             }
@@ -181,6 +182,11 @@ class ScopingST {
             cout<<"lookup "<<name<<" failed"<<endl;
             return nfSentinel;
         }
+        ClassObject* lookupClass(string name) {
+            if (objectDefs.find(name) != objectDefs.end())
+                return objectDefs.at(name);
+            return nullptr;
+        }
         int depth() {
             return depth(st);
         }
@@ -192,6 +198,8 @@ class ScopingST {
                 cout<<m.name<<": "<<m.addr<<", "<<m.depth<<endl;
                 if (m.type == 2) {
                     printScope(constPool.get(m.constPoolIndex).objval->closure->func->scope,d + 1);
+                } else if (m.type == 3) {
+                    printScope(constPool.get(m.constPoolIndex).objval->object->scope, d+1);
                 }
             }
         }

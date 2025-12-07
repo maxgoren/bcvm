@@ -204,6 +204,7 @@ struct StackItem {
 
 struct ClassObject {
     string name;
+    int cpIdx;
     StackItem fields[255]; 
     bool instantiated;
     Scope* scope;

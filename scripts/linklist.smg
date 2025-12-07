@@ -3,4 +3,9 @@ class Link {
     let next;
 };
 let x := new Link();
-println x;
+let y := new Link();
+x.info := 13;
+y.info := 42;
+x.next := y;
+y.next := nil;
+println x.info;

@@ -116,6 +116,10 @@ class STBuilder {
                     buildSymbolTable(t->left);
                     buildSymbolTable(t->right);
                 } break;
+                case SUBSCRIPT_EXPR: {
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
+                } break;
                 default: break;
             }
             buildExpressionST(t->left, fromLet);
@@ -259,6 +263,11 @@ class ResolveLocals {
                     closeScope();
                     return;
                 }break;
+                case SUBSCRIPT_EXPR: {
+                    resolve(node->left);
+                    resolve(node->right);
+                } break;
+                case BLESS_EXPR:
                 default:
                     break;
             }

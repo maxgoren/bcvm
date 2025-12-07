@@ -84,7 +84,7 @@ struct GCItem {
             case FUNCTION: func = si.func; break;
             case CLOSURE: closure = si.closure; break;
             case LIST: list = si.list; break;
-            case CLASS: object = si.object;
+            case CLASS: object = si.object; break;
         }
         type = si.type;
     }
@@ -95,7 +95,7 @@ struct GCItem {
                 case FUNCTION: func = si.func; break;
                 case CLOSURE: closure = si.closure; break;
                 case LIST: list = si.list; break;
-                case CLASS: object = si.object;
+                case CLASS: object = si.object; break;
             }
             type = si.type;
         }
@@ -107,7 +107,7 @@ struct GCItem {
             case FUNCTION: return "(func)" + func->name;
             case CLOSURE: return "(closure)" + closure->func->name + ", " + to_string(closure->func->start_ip);
             case LIST: return listToString(list);
-            case CLASS: return classToString(object);
+            case CLASS: return "(class)" + classToString(object);
         }
         return "(nil)";
     }

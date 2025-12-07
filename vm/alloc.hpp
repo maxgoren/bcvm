@@ -73,6 +73,20 @@ class GCAllocator {
             live_items.insert(x);
             return x;
         }
+        GCItem* alloc(ClassObject* l) {
+            GCItem* x;
+            if (!free_list.empty()) {
+                x = free_list.back(); 
+                free_list.pop_back();
+                x->type = CLASS;
+                x->object = l;
+                cout<<"From free list"<<endl;
+            } else {
+                x = new GCItem(l);
+            }
+            live_items.insert(x);
+            return x;
+        }
         unordered_set<GCItem*>& getLiveList() {
             return live_items;
         }

@@ -42,8 +42,6 @@ class StringBuffer : public CharBuffer {
         }
         string sliceFromStart(int matchlen) {
             string slice;
-            //if (buff[start+matchlen] == '"') matchlen--;
-            //if (buff[start] == '"') start++;
             for (int i = start; i <= start+matchlen; i++)
                 if (buff[i] != '\"' && buff[i-1] != '\\')
                     slice.push_back(buff[i]);
