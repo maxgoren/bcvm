@@ -213,6 +213,10 @@ struct ClassObject {
     }
 };
 
+string classToString(ClassObject* obj) {
+    return obj->name;
+}
+
 string listToString(deque<StackItem>* list) {
         string str = "[";
         for (auto m : *list) {
@@ -220,57 +224,5 @@ string listToString(deque<StackItem>* list) {
         }
         return str + "]";
 }
-
-class ConstPool {
-    private:
-        StackItem* data;
-        int n;
-        int maxN;
-        void grow() {
-            auto tmp = data;
-            data = new StackItem[2*maxN];
-            for (int i = 0; i < n; i++) {
-                data[i] = tmp[i];
-            }
-            delete [] tmp;
-            maxN *= 2;
-        }
-    public:
-        ConstPool() {
-            n = 0;
-            maxN = 255;
-            data = new StackItem[maxN];
-        }
-        ~ConstPool() {
-            delete [] data;
-        }
-        ConstPool(const ConstPool& cp) {
-            n = cp.n;
-            maxN = cp.maxN;
-            data = new StackItem[maxN];
-            for (int i = 0; i < n; i++)
-                data[i] = cp.data[i];
-        }
-        ConstPool& operator=(const ConstPool& cp) {
-            if (this != &cp) {
-                n = cp.n;
-                maxN = cp.maxN;
-                data = new StackItem[maxN];
-                for (int i = 0; i < n; i++)
-                    data[i] = cp.data[i];
-            }
-            return *this;
-        }
-        int insert(StackItem item) {
-            data[n++] = item;
-            return n-1;
-        }
-        StackItem& get(int indx) {
-            return data[indx];
-        }
-        int size() {
-            return n;
-        }
-};
 
 #endif

@@ -25,7 +25,8 @@ class STBuilder {
                 return;
             switch (t->stmt) {
                 case DEF_CLASS_STMT: {
-                    symTable->openFunctionScope(t->left->token.getString(), -1);
+                    symTable->openObjectScope(t->left->token.getString());
+                    buildSymbolTable(t->left);
                     buildSymbolTable(t->right);
                     symTable->closeScope();
                 } break;
@@ -213,6 +214,14 @@ class ResolveLocals {
                 case BLOCK_STMT: {
                     openScope();
                     resolve(node->left);
+                    closeScope();
+                } break;
+                case DEF_CLASS_STMT: {
+                    declareName(node->left->token.getString());
+                    defineName(node->left->token.getString());
+                    openScope();
+                    resolve(node->left);
+                    resolve(node->right);
                     closeScope();
                 } break;
                 case DEF_STMT: {

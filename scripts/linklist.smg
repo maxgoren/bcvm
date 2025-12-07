@@ -1,0 +1,6 @@
+class Link {
+    let info;
+    let next;
+};
+let x := new Link();
+println x;

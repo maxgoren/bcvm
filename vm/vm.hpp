@@ -2,25 +2,26 @@
 #define vm_hpp
 #include <vector>
 #include <memory>
+#include "constpool.hpp"
 #include "stackitem.hpp"
 #include "instruction.hpp"
 using namespace std;
 
 static const int MAX_OP_STACK = 1255;
-static const int MAX_CALL_STACK = 1255;
+static const int MAX_LOCAL = 255;
 
 struct ActivationRecord {
-    int cpIdx;
+    int cp_index;
     int num_args;
     int num_locals;
-    int returnAddress;
-    StackItem locals[255];
+    int ret_addr;
+    StackItem locals[MAX_LOCAL];
     ActivationRecord* control;
     ActivationRecord* access;
-    ActivationRecord(int n = -1, int ra = 0, int numArgs = 0, ActivationRecord* calling = nullptr, ActivationRecord* defining = nullptr) {
-        cpIdx = n;
-        returnAddress = ra;
-        num_args = numArgs;
+    ActivationRecord(int idx = -1, int ra = 0, int args = 0, ActivationRecord* calling = nullptr, ActivationRecord* defining = nullptr) {
+        cp_index = idx;
+        ret_addr = ra;
+        num_args = args;
         control = calling;
         access = defining;
     }
@@ -141,29 +142,21 @@ class VM {
         StackItem& top(int depth = 0) {
             return opstk[sp-depth];
         }
+        ActivationRecord* mostRecentAR(int func_id) {
+            auto x = callstk;
+            while (x != nullptr) {
+                if (x->cp_index == func_id) {
+                    break;
+                }
+                x = x->control;
+            }
+            return (x == nullptr) ? callstk:x;
+        }
         void closeOver(Instruction& inst) {
             int func_id = inst.operand[0].intval;
-            int depth = inst.operand[1].intval;
-            //First run through, we stash current activation record as closures defining env
-            //Subsequent invocations find the most recently created activation record for that function
-            ActivationRecord* closeOver = callstk;
-            string fn_name = constPool.get(func_id).objval->closure->func->name;
-            if (constPool.get(func_id).objval->closure->env == nullptr) {
-                constPool.get(func_id).objval->closure->env = callstk; 
-            } else {
-                auto x = callstk;
-                while (x != nullptr && x != globals) {
-                    if (x->cpIdx == func_id) {
-                        closeOver = x;
-                        break;
-                    }
-                    x = x->control;
-                }
-                if (x == nullptr || x == globals)
-                    closeOver = callstk;
-                else closeOver = x;
-            }
-            opstk[++sp] = StackItem(gc.alloc(new Closure(constPool.get(func_id).objval->closure->func, closeOver)));
+            auto closure = constPool.get(func_id).objval->closure;
+            closure->env = mostRecentAR(func_id);
+            opstk[++sp] = StackItem(gc.alloc(new Closure(closure->func, closure->env)));
         }
         void openBlock(Instruction& inst) {
             callstk = new ActivationRecord(BLOCK_CPIDX, ip, inst.operand[1].intval, callstk, callstk);
@@ -174,28 +167,18 @@ class VM {
             if (verbLev > 1)
                 cout<<"Leaving scope."<<endl;
         }
-        Closure* getProcedureForCall(int cpIdx) {
-            if (cpIdx == -1)
-                return opstk[sp--].objval->closure;
-            if (opstk[sp].type == OBJECT && opstk[sp].objval->type == CLOSURE)
-                sp--;
-            return constPool.get(cpIdx).objval->closure;
-        }
         void callProcedure(Instruction& inst) {
-            int returnAddr = ip;
             int numArgs = inst.operand[1].intval;
-            int lexDepth = inst.operand[2].intval;
             int cpIdx = inst.operand[0].intval;
-            Closure* close = getProcedureForCall(cpIdx);
-            callstk = new ActivationRecord(cpIdx, returnAddr, numArgs, callstk, close->env);            
+            Closure* close = opstk[sp--].objval->closure;
+            callstk = new ActivationRecord(cpIdx, ip, numArgs, callstk, close->env);
             for (int i = numArgs; i > 0; i--) {
                 callstk->locals[i] = opstk[sp--];
             }
-            callstk->returnAddress = returnAddr;
             ip = close->func->start_ip;
         }
-        void retProc() {
-            ip = callstk->returnAddress;
+        void retProcedure() {
+            ip = callstk->ret_addr;
             closeBlock();
         }
         void storeGlobal() {
@@ -240,7 +223,7 @@ class VM {
                     case STRING: 
                         top(1) = (top(1).objval->strval->at(top(0).numval)); break;
                     case CLASS:
-                        top(1) = (top(1).objval->object->fields[top(0).numval]); break;
+                        top(1) = (top(1).objval->object->fields[(int)top(0).numval]); break;
                     default:
                         break;
                 }
@@ -255,13 +238,22 @@ class VM {
                     /*case STRING: 
                         top(1).objval->strval->at(top(0).numval) = top(2); break;*/
                     case CLASS:
-                        top(1).objval->object->fields[top(0).numval] = top(2); break;
+                        top(1).objval->object->fields[(int)top(0).numval] = top(2); break;
                     default:
                         break;
                 }
             top(2) = top(1);
             top(1) = top(0);
             sp--;
+            }
+        }
+        void duplicateTopOfStack() {
+            StackItem ts = opstk[sp];
+            if (ts.type == OBJECT && ts.objval->type == CLASS) {
+                string name = ts.objval->object->name;
+                cout<<"Duplicating "<<name<<endl;
+            } else {
+                opstk[++sp] = top(0);
             }
         }
         void loadConst(Instruction& inst) {
@@ -377,11 +369,12 @@ class VM {
                 case list_push:  { pushList(); } break;
                 case list_len:  { listLength(); } break;
                 case call:     { callProcedure(inst); } break;
-                case retfun:   { retProc(); } break;
+                case retfun:   { retProcedure(); } break;
                 case entblk:   { openBlock(inst); } break;
                 case retblk:   { closeBlock(); } break;
                 case incr:      { top(0).numval += 1; } break;
                 case decr:      { top(0).numval -= 1; } break;
+                case dup:      { duplicateTopOfStack(); } break;
                 case jump:     { uncondBranch(inst); } break;
                 case brf:      { branchOnFalse(inst); } break;
                 case binop:    { binaryOperation(inst); } break;

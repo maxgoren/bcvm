@@ -42,10 +42,11 @@ class StringBuffer : public CharBuffer {
         }
         string sliceFromStart(int matchlen) {
             string slice;
-            if (buff[start+matchlen] == '"') matchlen-=2;
-            if (buff[start] == '"') start++;
+            //if (buff[start+matchlen] == '"') matchlen--;
+            //if (buff[start] == '"') start++;
             for (int i = start; i <= start+matchlen; i++)
-                slice.push_back(buff[i]);
+                if (buff[i] != '\"' && buff[i-1] != '\\')
+                    slice.push_back(buff[i]);
             return slice;
         }
         char get() {

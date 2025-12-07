@@ -63,6 +63,32 @@ class Parser {
             }
             return d.next;
         }
+        astnode* parseFunctionCallAndSubscripts(astnode* n) {
+            while (expect(TK_LPAREN) || expect(TK_LB) || expect(TK_PERIOD)) {
+                if (expect(TK_LPAREN)) {
+                    astnode* fc = new astnode(FUNC_EXPR, current());
+                    fc->left = n;
+                    match(TK_LPAREN);
+                    fc->right = argsList();
+                    match(TK_RPAREN);
+                    n = fc;
+                } else if (expect(TK_LB)) {
+                    astnode* ss = new astnode(SUBSCRIPT_EXPR, current());
+                    match(TK_LB);
+                    ss->left = n;
+                    ss->right = expression();
+                    match(TK_RB);
+                    n = ss;
+                } else if (expect(TK_PERIOD)) {
+                    astnode* ma = new astnode(SUBSCRIPT_EXPR, current());
+                    match(TK_PERIOD);
+                    ma->left = n;
+                    ma->right = primary();
+                    n = ma;
+                }
+            }
+            return n;
+        }
         astnode* primary() {
             //cout<<"primary expr"<<endl;
             astnode* n = nullptr;
@@ -75,16 +101,19 @@ class Parser {
             } else if (expect(TK_ID)) {
                 n = new astnode(ID_EXPR, current());
                 match(TK_ID);
-            } else if (expect(TK_LPAREN)) {
-                match(TK_LPAREN);
-                n = expression();
-                match(TK_RPAREN);
             } else if (expect(TK_TRUE)) {
                 n = new astnode(CONST_EXPR, current());
                 match(TK_TRUE);
             } else if (expect(TK_FALSE)) {
                 n = new astnode(CONST_EXPR, current());
                 match(TK_FALSE);
+            } else if (expect(TK_NIL)) {
+                n = new astnode(CONST_EXPR, current());
+                match(TK_NIL);
+            } else if (expect(TK_LPAREN)) {
+                match(TK_LPAREN);
+                n = expression();
+                match(TK_RPAREN);
             } else if (expect(TK_LAMBDA)) {
                 n = new astnode(LAMBDA_EXPR, current());
                 match(TK_LAMBDA);
@@ -104,10 +133,6 @@ class Parser {
                 match(TK_LB);
                 n->left = argsList();
                 match(TK_RB);
-            } else if (expect(TK_SIZE)) {
-                n = new astnode(LIST_EXPR, current());
-                match(TK_SIZE);
-                n->left = expression();
             } else if (expect(TK_APPEND)) {
                 n = new astnode(LIST_EXPR, current());
                 match(TK_APPEND);
@@ -135,29 +160,7 @@ class Parser {
                 match(TK_RPAREN);
             }
             if (n != nullptr && (n->expr == ID_EXPR || n->expr == LIST_EXPR)) {
-                while (expect(TK_LPAREN) || expect(TK_LB) || expect(TK_PERIOD)) {
-                    if (expect(TK_LPAREN)) {
-                        astnode* fc = new astnode(FUNC_EXPR, current());
-                        fc->left = n;
-                        match(TK_LPAREN);
-                        fc->right = argsList();
-                        match(TK_RPAREN);
-                        n = fc;
-                    } else if (expect(TK_LB)) {
-                        astnode* ss = new astnode(SUBSCRIPT_EXPR, current());
-                        match(TK_LB);
-                        ss->left = n;
-                        ss->right = expression();
-                        match(TK_RB);
-                        n = ss;
-                    } else if (expect(TK_PERIOD)) {
-                        astnode* ma = new astnode(SUBSCRIPT_EXPR, current());
-                        match(TK_PERIOD);
-                        ma->left = n;
-                        ma->right = expression();
-                        n = ma;
-                    }
-                }
+                n = parseFunctionCallAndSubscripts(n);
             }
             return n;
         }

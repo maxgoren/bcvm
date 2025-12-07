@@ -1,6 +1,7 @@
 #ifndef scopingst_hpp
 #define scopingst_hpp
 #include "../vm/stackitem.hpp"
+#include "../vm/constpool.hpp"
 #include <map>
 #include <vector>
 #include <iostream>
@@ -108,7 +109,7 @@ class ScopingST {
             return na;
         }
         int depth(Scope* s) {
-            if (s->enclosing == nullptr) {
+            if (s == nullptr || s->enclosing == nullptr) {
                 cout<<"Rnnnt."<<endl;
                 return -1;
             }
@@ -131,7 +132,7 @@ class ScopingST {
         }
         void openObjectScope(string name) {
             if (st->symTable.find(name) != st->symTable.end()) {
-                Scope* ns = constPool.get(st->symTable[name].constPoolIndex).objval->object->scope;
+                Scope* ns = objectDefs[name]->scope; //constPool.get(st->symTable[name].constPoolIndex).objval->object->scope;
                 st = ns;
             } else {
                 Scope* ns = new Scope;
@@ -140,7 +141,7 @@ class ScopingST {
                 objectDefs.insert(make_pair(name, obj));
                 int constIdx = constPool.insert(obj);
                 int envAddr = nextAddr();
-                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(st+1)));
+                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(st)+1));
                 st = ns;
             }
         }
@@ -160,7 +161,7 @@ class ScopingST {
             }
         }
         void closeScope() {
-            if (st->enclosing != nullptr) {
+            if (st != nullptr && st->enclosing != nullptr) {
                 st = st->enclosing;
             }
         }

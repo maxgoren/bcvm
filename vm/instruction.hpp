@@ -12,7 +12,7 @@ enum VMInstruction {
     stupval, stfield,
     call, retfun, 
     entblk, retblk,
-    jump, brf, incr, decr,
+    jump, brf, incr, decr, dup,
     binop, unop, mkclosure, 
     defstruct, mkstruct, popstack,
     list_append, list_push, list_len,
@@ -20,8 +20,8 @@ enum VMInstruction {
 };
 
 string instrStr[] = { "defun", "label", "ldfield", "ldconstpl", "ldconst", "ldglobal", "ldlocal", "ldupval", "ldlocaladdr", "ldglobaladdr",
-                     "stglobal", "stlocal", "stupval", "stfield", "call", "retfun", "entblk", "retblk", "jump", "brf", "inc", "dec", "binop", "unop", "mkclosure",
-                     "popstack", "append", "push", "list_len", "print", "halt"};
+                     "stglobal", "stlocal", "stupval", "stfield", "call", "retfun", "entblk", "retblk", "jump", "brf", "incr", "decr", "dup", 
+                     "binop", "unop", "mkclosure", "defstruct", "mkstruct", "popstack", "append", "push", "list_len", "print", "halt"};
 
 enum VMOperators {
     VM_ADD = 1, VM_SUB = 2, VM_MUL = 3, VM_DIV = 4, 

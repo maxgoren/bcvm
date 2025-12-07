@@ -4,12 +4,10 @@
 #include <unordered_map>
 #include "../parse/ast.hpp"
 #include "../vm/instruction.hpp"
+#include "../vm/constpool.hpp"
 #include "scopingst.hpp"
 #include "stresolver.hpp"
 using namespace std;
-
-//{ fn ok() { println "hi"; }; ok(); }
-
 
 
 class  ByteCodeGenerator {
@@ -21,10 +19,6 @@ class  ByteCodeGenerator {
         ScopingST symTable;
         STBuilder sr;
         ResolveLocals rl;
-        string nextLabel() {
-            static int next = 0;
-            return "L" + to_string(next++);
-        }
         int scopeLevel() {
             return symTable.depth();
         }
@@ -122,7 +116,7 @@ class  ByteCodeGenerator {
                     if (noisey) cout << "LDLOCAL: " << n->token.getString()<<", scopelevel= "<<n->token.scopeLevel() << " depth= " <<item.depth<< endl;
                 } else {
                     emit(Instruction(ldupval, item.addr, depth));
-                    if (noisey) cout<<"[AS UPVAL]" << "LDUPVAL: " << n->token.getString()<<", scopelevel= "<<n->token.scopeLevel() << " depth= " <<item.depth<< endl;
+                    if (noisey) cout<< "LDUPVAL: " << n->token.getString()<<", scopelevel= "<<n->token.scopeLevel() << " depth= " <<item.depth<< endl;
                 }
             }
         }
@@ -211,7 +205,6 @@ class  ByteCodeGenerator {
             emit(Instruction(retfun));
             int cpos = skipEmit(0);
             symTable.closeScope();
-            emit(Instruction(label, nextLabel()));
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
@@ -256,6 +249,20 @@ class  ByteCodeGenerator {
             symTable.closeScope();
             emit(Instruction(retblk));
         }
+        void emitClassDef(astnode* n) {
+            cout<<"Compiling class Definition: "<<n->left->token.getString()<<endl;
+            int L1 = skipEmit(0);
+            skipEmit(1);
+            string name = n->left->token.getString();
+            emit(Instruction(defstruct, name, L1+1));
+            symTable.openObjectScope(name);
+            genCode(n->right, false);
+            int cpos = skipEmit(0);
+            symTable.closeScope();
+            skipTo(L1);
+            emit(Instruction(jump, cpos));
+            restore();
+        }
         void emitFuncDef(astnode* n) {
             if (noisey) cout<<"Compiling Function Definition: "<<n->token.getString()<<endl;
             int numArgs = 0;
@@ -270,7 +277,6 @@ class  ByteCodeGenerator {
             emit(Instruction(retfun));
             int cpos = skipEmit(0);
             symTable.closeScope();
-            emit(Instruction(label, nextLabel()));
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
@@ -342,7 +348,7 @@ class  ByteCodeGenerator {
         }
         void genStatement(astnode* n, bool needLvalue) {
             switch (n->stmt) {
-                case DEF_CLASS_STMT: { /* (-,-) */ } break;
+                case DEF_CLASS_STMT: { emitClassDef(n); } break;
                 case DEF_STMT:    { emitFuncDef(n); } break;
                 case BLOCK_STMT:  { emitBlock(n);   } break;
                 case IF_STMT:     { emitIfStmt(n);   } break;
@@ -419,7 +425,7 @@ class  ByteCodeGenerator {
             rl.resolveLocals(n);
             if (noisey) cout<<"Compiling..."<<endl;
             genCode(n, false);
-            if (noisey) printByteCode();
+            printByteCode();
             return code;
         }
 };
