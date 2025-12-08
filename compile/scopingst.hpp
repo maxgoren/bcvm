@@ -132,9 +132,15 @@ class ScopingST {
         }
         void openObjectScope(string name) {
             if (st->symTable.find(name) != st->symTable.end()) {
-                cout<<"Reopened Object scope for "<<name<<endl;
-                Scope* ns = constPool.get(st->symTable.find(name).constPoolIndex).objval->object->scope;
-                st = ns;
+                 if (st->symTable.find(name).type == CLASSVAR) {
+                    cout<<"Reopened Object scope for "<<name<<endl;
+                    Scope* ns = constPool.get(st->symTable.find(name).constPoolIndex).objval->object->scope;
+                    st = ns;
+                 } else {
+                    Scope* ns = new Scope();
+                    ns->enclosing = st;
+                    st = ns;
+                 }
             } else {
                 Scope* ns = new Scope;
                 ns->enclosing = st;

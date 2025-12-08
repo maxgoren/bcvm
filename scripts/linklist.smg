@@ -4,7 +4,8 @@ class Link {
 };
 
 
-let head : Link := nil;
+let head : Link;
+head := nil;
 let i := 1;
 while (i < 10) {
     let tmp := new Link();
@@ -12,5 +13,5 @@ while (i < 10) {
     tmp.next := head;
     head := tmp;
     i := i + 1;
-    println head.info;
+    println (i-1) + ": " + head.info;
 }
