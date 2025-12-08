@@ -219,32 +219,38 @@ class VM {
             if (top(1).type == OBJECT) {
                 switch (top(1).objval->type) {
                     case LIST:
-                        top(1) = (top(1).objval->list->at(top(0).numval)); break;
+                        top(1) = (top(1).objval->list->at(top(0).numval)); sp--; break;
                     case STRING: 
-                        top(1) = (top(1).objval->strval->at(top(0).numval)); break;
-                    case CLASS:
-                        top(1) = (top(1).objval->object->fields[(int)top(0).numval]); break;
+                        top(1) = (top(1).objval->strval->at(top(0).numval)); sp--; break;
+                    case CLASS: {
+                        int idx = top(0).type == INTEGER ?  top(0).intval:(int)top(0).numval;    
+                        cout<<"Class index: "<<idx<<endl;
+                        top(1) = (top(1).objval->object->fields[idx]);
+                        sp-=2;
+                    }
                     default:
                         break;
                 }
-                sp--;
             }
         }
         void indexed_store(Instruction& inst) {
             if (top(1).type == OBJECT) {
                 switch (top(1).objval->type) {
                     case LIST:
-                        top(1).objval->list->at(top(0).numval) = top(2); break;
+                        top(1).objval->list->at(top(0).numval) = top(2); 
+                        sp--;
+                        break;
                     /*case STRING: 
                         top(1).objval->strval->at(top(0).numval) = top(2); break;*/
-                    case CLASS:
-                        top(1).objval->object->fields[(int)top(0).numval] = top(2); break;
+                    case CLASS: {
+                        int idx = top(0).type == INTEGER ?  top(0).intval:(int)top(0).numval;    
+                        //cout<<"Class index: "<<idx<<endl;
+                        top(1).objval->object->fields[idx] = top(2);
+                        sp -= 2;
+                    } break;
                     default:
                         break;
                 }
-            top(2) = top(1);
-            top(1) = top(0);
-            sp--;
             }
         }
         void duplicateTopOfStack() {
@@ -389,8 +395,8 @@ class VM {
                 case ldglobal: { loadGlobal(inst); } break;
                 case ldupval:  { loadUpval(inst); } break;
                 case ldlocal:  { loadLocal(inst); } break;
-                case ldlocaladdr:  { opstk[++sp] = (inst.operand[0].intval); } break;
-                case ldglobaladdr: { opstk[++sp] = (inst.operand[0].intval); } break;
+                case ldlocaladdr:  { opstk[++sp] = (inst.operand[0]); } break;
+                case ldglobaladdr: { opstk[++sp] = (inst.operand[0]); } break;
                 case ldfield:      { loadIndexed(inst); } break;
                 case label: { /* nop() */ } break;
                 case popstack:  { sp--; } break; 
@@ -424,7 +430,7 @@ class VM {
             cout<<"Callstack: \n";
             auto x = callstk;
             int i = 0;
-            while (x != x->control->control) {
+            while (x != nullptr) {
                 cout<<"\t   "<<i++<<": [ ";
                 for (int j = 1; j <= 5; j++) {
                     cout<<(j)<<": "<<"{"<<x->locals[j].toString()<<"}, ";
@@ -490,8 +496,8 @@ class VM {
                 }
                 if (verbosity > 2) {
                     printCallStack();
-                    cout<<"================"<<endl;
                 }
+                if (verbosity > 0) cout<<"================"<<endl;
             }
         }
 };

@@ -132,7 +132,8 @@ class ScopingST {
         }
         void openObjectScope(string name) {
             if (st->symTable.find(name) != st->symTable.end()) {
-                Scope* ns = objectDefs[name]->scope;
+                cout<<"Reopened Object scope for "<<name<<endl;
+                Scope* ns = constPool.get(st->symTable.find(name).constPoolIndex).objval->object->scope;
                 st = ns;
             } else {
                 Scope* ns = new Scope;
@@ -145,6 +146,10 @@ class ScopingST {
                 st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(st)+1));
                 st = ns;
             }
+        }
+        void copyObjectScope(string instanceName, string objName) {
+            Scope* sc = objectDefs[objName]->scope;
+            st->symTable.insert(instanceName, SymbolTableEntry(instanceName, nextAddr(), objectDefs[objName]->cpIdx, CLASSVAR, depth(st)+1));
         }
         void openFunctionScope(string name, int L1) {
             if (st->symTable.find(name) != st->symTable.end()) {

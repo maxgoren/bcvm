@@ -11,11 +11,25 @@ enum NodeType {
 };
 
 enum ExprType {
-    CONST_EXPR, ID_EXPR, BIN_EXPR, UOP_EXPR, FUNC_EXPR, LAMBDA_EXPR, LISTCON_EXPR, SUBSCRIPT_EXPR, LIST_EXPR, BLESS_EXPR
+    CONST_EXPR, ID_EXPR, BIN_EXPR, UOP_EXPR, FUNC_EXPR, LAMBDA_EXPR,
+    LISTCON_EXPR, SUBSCRIPT_EXPR, LIST_EXPR, BLESS_EXPR, FIELD_EXPR
 };
 
+string exprTypeStr[] = {
+    "CONST_EXPR", "ID_EXPR", "BIN_EXPR", "UOP_EXPR", "FUNC_EXPR", "LAMBDA_EXPR",
+    "LISTCON_EXPR", "SUBSCRIPT_EXPR", "LIST_EXPR", "BLESS_EXPR", "FIELD_EXPR"
+};
+
+
 enum StmtType {
-    PRINT_STMT, WHILE_STMT, IF_STMT, ELSE_STMT, STMT_LIST, EXPR_STMT, LET_STMT, RETURN_STMT, DEF_STMT, DEF_CLASS_STMT, BLOCK_STMT
+    PRINT_STMT, WHILE_STMT, IF_STMT, ELSE_STMT, STMT_LIST, EXPR_STMT,
+    LET_STMT, RETURN_STMT, DEF_STMT, DEF_CLASS_STMT, BLOCK_STMT
+};
+
+string stmtTypeStr[] = { 
+    "PRINT_STMT", "WHILE_STMT", "IF_STMT", "ELSE_STMT", "STMT_LIST", "EXPR_STMT",
+    "LET_STMT", "RETURN_STMT", "DEF_STMT", "DEF_CLASS_STMT", "BLOCK_STMT"
+    
 };
 
 struct astnode {
@@ -38,7 +52,12 @@ void preorder(astnode* node, int d, set<astnode*>& seen) {
         if (seen.find(node) == seen.end()) {
             seen.insert(node);
             for (int i = 0; i < d; i++) cout<<" ";
-            cout<<node->token.getString()<<endl;
+            cout<<"[";
+            switch (node->kind) {
+                case EXPRNODE: cout<<exprTypeStr[node->expr]; break;
+                case STMTNODE: cout<<stmtTypeStr[node->stmt]; break;
+            }
+            cout<<"] "<<node->token.getString()<<endl;
             preorder(node->left, d + 1, seen);
             preorder(node->right, d + 1, seen);
             preorder(node->next, d, seen);

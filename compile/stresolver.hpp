@@ -33,7 +33,13 @@ class STBuilder {
                 case DEF_STMT: {
                     cout<<"Open scope."<<endl;
                     symTable->openFunctionScope(t->token.getString(), -1);
-                    buildSymbolTable(t->left);
+                    for (auto it = t->left; it != nullptr; it = it->next) {
+                        if (it->right != nullptr) {
+                            symTable->copyObjectScope(it->left->token.getString(), it->right->token.getString());
+                        } else {
+                            buildSymbolTable(it);
+                        }
+                    }
                     buildSymbolTable(t->right);
                     symTable->closeScope();
                     cout<<"Close scope."<<endl;
@@ -52,10 +58,21 @@ class STBuilder {
                 } break;
                 case LET_STMT: {
                     switch (t->left->expr) {
-                        case ID_EXPR: buildExpressionST(t->left, true); break;
+                        case ID_EXPR: {
+                            if (t->right != nullptr) {
+                                symTable->copyObjectScope(t->left->token.getString(), t->right->token.getString());
+                            } else {
+                                buildExpressionST(t->left, true); 
+                            }
+                        } break;
                         case BIN_EXPR: {
-                            buildExpressionST(t->left, true);
-                            buildExpressionST(t->right, false);
+                            auto binexpr = t->left;
+                            if (binexpr->right->expr == BLESS_EXPR) {
+                                symTable->copyObjectScope(binexpr->left->token.getString(), binexpr->right->left->token.getString());
+                            } else {
+                                buildExpressionST(binexpr->left, true);
+                                buildExpressionST(binexpr->right, false);
+                            }
                         } break;          
                     }
                     buildSymbolTable(t->next);
@@ -142,6 +159,7 @@ class STBuilder {
         STBuilder() { }
         void buildSymbolTable(astnode* ast, ScopingST* st) {
             symTable = st;
+            cout<<"Building Symbol Table: ";
             buildSymbolTable(ast);
         }
 };
@@ -149,13 +167,21 @@ class STBuilder {
 class ResolveLocals {
     private:
         int scope;
+        ScopingST* st;
         vector<unordered_map<string, bool>> scopes;
-        void openScope() {
+        void openScope(string name) {
+            SymbolTableEntry sc_info = st->lookup(name, -1);
+            if (sc_info.type == CLASSVAR) {
+                st->openObjectScope(name);
+            } else {
+                st->openFunctionScope(name, -1);
+            }
             scopes.push_back(unordered_map<string,bool>());
             cout<<"Open new scope"<<endl;
         }
         void closeScope() {
             scopes.pop_back();
+            st->closeScope();
             cout<<"Close scope."<<endl;
         }
         void declareName(string name) {
@@ -170,6 +196,14 @@ class ResolveLocals {
             if (scopes.empty())
                 return;
             scopes.back().at(name) = true;
+        }
+        void resolveObjectField(astnode* t) {
+            cout<<"Resolving Field Reference"<<endl;
+            string objectName = t->left->token.getString();
+            cout<<"Get Object level"<<endl;
+            resolveName(objectName, t->left);
+            cout<<"Field '"<<t->right->token.getString() <<"' is obejctlevel"<<endl;
+            t->right->token.setScopeLevel(t->left->token.scopeLevel());
         }
         void resolveName(string name, astnode* t) {
             for (int i = scopes.size() - 1; i >= 0; i--) {
@@ -216,14 +250,14 @@ class ResolveLocals {
                     resolve(node->right);
                 } break;
                 case BLOCK_STMT: {
-                    openScope();
+                    openScope(node->token.getString());
                     resolve(node->left);
                     closeScope();
                 } break;
                 case DEF_CLASS_STMT: {
                     declareName(node->left->token.getString());
                     defineName(node->left->token.getString());
-                    openScope();
+                    openScope(node->left->token.getString());
                     resolve(node->left);
                     resolve(node->right);
                     closeScope();
@@ -231,7 +265,7 @@ class ResolveLocals {
                 case DEF_STMT: {
                     declareName(node->token.getString());
                     defineName(node->token.getString());
-                    openScope();
+                    openScope(node->token.getString());
                     for (auto it = node->left; it != nullptr; it = it->next) {
                         declareName(it->left->token.getString());
                         defineName(it->left->token.getString());
@@ -255,7 +289,7 @@ class ResolveLocals {
                     return;   
                 } break;
                 case LAMBDA_EXPR: {
-                    openScope();
+                    openScope(node->token.getString());
                     for (auto it = node->left; it != nullptr; it = it->next) {
                         resolve(it);
                     }
@@ -267,7 +301,14 @@ class ResolveLocals {
                     resolve(node->left);
                     resolve(node->right);
                 } break;
-                case BLESS_EXPR:
+                case FIELD_EXPR: {
+                    resolveObjectField(node);
+                    return;
+                } break;
+                case BLESS_EXPR: {
+                    resolve(node->left);
+                    resolve(node->right);
+                } break;
                 default:
                     break;
             }
@@ -285,8 +326,9 @@ class ResolveLocals {
         ResolveLocals() {
 
         }
-        void resolveLocals(astnode* node) {
+        void resolveLocals(astnode* node, ScopingST* sym) {
             cout<<"Resolving Locals."<<endl;
+            st = sym;
             resolve(node);
         }
 };

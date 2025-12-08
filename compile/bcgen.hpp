@@ -50,6 +50,8 @@ class  ByteCodeGenerator {
                 if (n->left->token.getSymbol() == TK_LB) {
                     if (noisey) cout<<"Step two: handle list access."<<endl;
                     emitListAccess(n->left, true);
+                } else if (n->left->token.getSymbol() == TK_PERIOD) {
+                    emitFieldAccess(n->left, true);
                 } else {
                     if (noisey) cout<<"Step two: stack address of var name (from left)"<<endl;
                     emitLoad(n->left, true);
@@ -136,33 +138,37 @@ class  ByteCodeGenerator {
 
         }
         void emitListAccess(astnode* n, bool isLvalue) {
-            genCode(n->left, false);
-            genCode(n->right, false);
+            genExpression(n->left, false);
+            genExpression(n->right, false);
             emit(Instruction(isLvalue ? stfield:ldfield));
         }
         void emitFieldAccess(astnode* n, bool isLvalue) {
-            genCode(n->left, false);
-            genCode(n->right, false);
+            cout<<"Emitting Field access for "<<n->left->token.getString()<<"."<<n->right->token.getString()<<endl;
+            emitLoad(n->left, false);
+            symTable.openObjectScope(n->left->token.getString());
+            emitLoad(n->right, true);
+            cout<<"and Close it."<<endl;
+            symTable.closeScope();
             emit(Instruction(isLvalue ? stfield:ldfield));
         }
-        void emitSubscript(astnode* n, bool isLvalue) {
-            if (n->token.getSymbol() == TK_PERIOD) {
-                emitFieldAccess(n, isLvalue);
-            } else {
-                emitListAccess(n, isLvalue);
-            }
-        }
-        void emitListOperation(astnode* n) {
-            switch (n->token.getSymbol()) {
+        void emitListOperation(astnode* listExpr) {
+            auto listname = listExpr->left;
+            auto operation = listExpr->right;
+            if (operation == nullptr)
+                return;
+            switch (operation->token.getSymbol()) {
                 case TK_APPEND: {
-                    genExpression(n->left, false);
+                    genExpression(listname, false);
+                    genExpression(operation->left, false);
                     emit(Instruction(list_append));
                 } break;
                 case TK_PUSH: {
-                    genExpression(n->left, false);
+                    genExpression(listname, false);
+                    genExpression(operation->left, false);
                     emit(Instruction(list_push));
                 } break;
                 case TK_SIZE: {
+                    genExpression(listname, false);
                     emit(Instruction(list_len));
                 } break;
             }
@@ -173,7 +179,7 @@ class  ByteCodeGenerator {
         }
         void emitPrint(astnode* n) {
             if (noisey) cout<<"Compiling Print Statement: "<<endl;
-            genCode(n->left, false); 
+            genExpression(n->left, false); 
             emit(Instruction(print));
         }
         void emitConstant(astnode* n) {
@@ -369,9 +375,10 @@ class  ByteCodeGenerator {
                 case LAMBDA_EXPR:    { emitLambda(n);        } break;
                 case FUNC_EXPR:      { emitFunctionCall(n);   } break;
                 case LISTCON_EXPR:   { emitListConstructor(n); } break;
-                case SUBSCRIPT_EXPR: { emitSubscript(n, needLvalue); } break;
-                case LIST_EXPR: { emitListOperation(n); } break;
-                case BLESS_EXPR: { emitBlessExpr(n); } break;
+                case SUBSCRIPT_EXPR: { emitListAccess(n, needLvalue); } break;
+                case FIELD_EXPR:     { emitFieldAccess(n, needLvalue); } break;
+                case LIST_EXPR:      { emitListOperation(n); } break;
+                case BLESS_EXPR:     { emitBlessExpr(n); } break;
                 default:
                     break;
             }
@@ -415,6 +422,7 @@ class  ByteCodeGenerator {
             code = vector<Instruction>(255, Instruction(halt, 0));
             cpos = 0;
             highCI = 0;
+            noisey = true;
         }
         ConstPool& getConstPool() {
             return symTable.getConstPool();
@@ -422,10 +430,15 @@ class  ByteCodeGenerator {
         vector<Instruction> compile(astnode* n) {
             if (noisey) cout<<"Build Symbol Table: "<<endl;
             sr.buildSymbolTable(n, &symTable);
-            rl.resolveLocals(n);
+            rl.resolveLocals(n, &symTable);
             if (noisey) cout<<"Compiling..."<<endl;
             genCode(n, false);
             printByteCode();
+            cout<<"Constant Pool: "<<endl;
+            for (int i = 0; i < symTable.getConstPool().size(); i++) {
+                cout<<i<<": {"<<symTable.getConstPool().get(i).toString()<<"}"<<endl;
+            }
+            cout<<"-------------------"<<endl;
             return code;
         }
 };

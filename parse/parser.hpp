@@ -60,6 +60,10 @@ class Parser {
                     match(TK_COMMA);
                 t->next = statement();
                 t = t->next;
+                if (expect(TK_COLON)) {
+                    match(TK_COLON);
+                    t->right = expression();
+                }
             }
             return d.next;
         }
@@ -80,10 +84,12 @@ class Parser {
                     match(TK_RB);
                     n = ss;
                 } else if (expect(TK_PERIOD)) {
-                    astnode* ma = new astnode(SUBSCRIPT_EXPR, current());
+                    astnode* ma = new astnode(FIELD_EXPR, current());
                     match(TK_PERIOD);
                     ma->left = n;
                     ma->right = primary();
+                    if (ma->right->expr == LIST_EXPR)
+                    ma->expr = LIST_EXPR;
                     n = ma;
                 }
             }
@@ -321,7 +327,21 @@ class Parser {
                 case TK_LET: {
                     n = new astnode(LET_STMT, current());
                     match(TK_LET);
-                    n->left = expression();
+                    astnode* t = new astnode(ID_EXPR, current());
+                    match(TK_ID);
+                    if (expect(TK_COLON)) {
+                        match(TK_COLON);
+                        n->right = new astnode(ID_EXPR, current());
+                        match (TK_ID);
+                    }
+                    if (expect(TK_ASSIGN)) {
+                        astnode* r = new astnode(BIN_EXPR, current());
+                        match(TK_ASSIGN);
+                        r->left = t;
+                        r->right = expression();
+                        t = r;
+                    }
+                    n->left = t;
                 } break;
                 case TK_RETURN: {
                     n = new astnode(RETURN_STMT, current());

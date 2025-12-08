@@ -2,10 +2,15 @@ class Link {
     let info;
     let next;
 };
-let x := new Link();
-let y := new Link();
-x.info := 13;
-y.info := 42;
-x.next := y;
-y.next := nil;
-println x.info;
+
+
+let head : Link := nil;
+let i := 1;
+while (i < 10) {
+    let tmp := new Link();
+    tmp.info := i;
+    tmp.next := head;
+    head := tmp;
+    i := i + 1;
+    println head.info;
+}

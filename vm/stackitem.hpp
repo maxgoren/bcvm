@@ -215,6 +215,14 @@ struct ClassObject {
 };
 
 string classToString(ClassObject* obj) {
+    if (obj->instantiated) {
+        string str = obj->name + "{ ";
+        for (int i = 1; obj->fields[i].type != NIL; i++) {
+            str += to_string(i) + ": " + obj->fields[i].toString() +" ";
+        }
+        str += "} ";
+        return str;
+    }
     return obj->name;
 }
 
