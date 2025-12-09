@@ -126,11 +126,9 @@ struct StackItem {
         if (type == OBJECT || rhs.type == OBJECT) {
             string str;
             for (char c : toString()) {
-                if (c == '"') continue;
                 str.push_back(c);
             }
             for (char c : rhs.toString()) {
-                if (c == '"') continue;
                 str.push_back(c);
             }
             objval = gc.alloc(new string(str));

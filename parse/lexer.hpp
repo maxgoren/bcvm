@@ -79,6 +79,7 @@ vector<Token> Lexer::lex(CharBuffer* buff) {
                 in_comment = false;
             buffer->advance();
         }
+        cout<<"Recognized: {'"<<tokens.back().getString()<<"'}"<<endl;
     }
     tokens.push_back(Token(TK_EOI, "<fin>"));
     return tokens;

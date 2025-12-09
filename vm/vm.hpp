@@ -181,6 +181,15 @@ class VM {
             ip = callstk->ret_addr;
             closeBlock();
         }
+        void instantiate(Instruction& inst) {
+            ClassObject* master = constPool.get(inst.operand[0].intval).objval->object;
+            ClassObject* clone = new ClassObject(master->name, master->scope);
+            clone->instantiated = true;
+            for (auto m : master->fields) {
+                clone->fields[m.first] = StackItem();
+            }
+            opstk[++sp] = new GCItem(clone); 
+        }
         void storeGlobal() {
             StackItem t = opstk[sp--];
             StackItem val = opstk[sp--];
@@ -215,7 +224,7 @@ class VM {
             if (verbLev > 1)
                 cout<<"Stored upval at "<<t.intval<<" in scope "<<(inst.operand[0].intval)<<endl;
         }
-        void loadIndexed(Instruction& inst) {
+        void loadField(Instruction& inst) {
             if (top(0).type == OBJECT && top(0).objval->type == CLASS) {
                 int idx = inst.operand[0].intval;    
                 string fieldName = *(constPool.get(idx).objval->strval);
@@ -225,6 +234,8 @@ class VM {
                 top(0) = item;
                 return;
             }
+        }
+        void loadIndexed(Instruction& inst) {
             if (top(1).type == OBJECT) {
                 switch (top(1).objval->type) {
                     case LIST:
@@ -236,11 +247,14 @@ class VM {
                 }
             }
         }
-        void indexed_store(Instruction& inst) {
+        void storeIndexed(Instruction& inst) {
             if (top(1).type == OBJECT && top(1).objval->type == LIST) {
                 top(1).objval->list->at(top(0).numval) = top(2); 
                 sp--;
-            } else if (top(0).objval->type == CLASS) {
+            }
+        }
+        void storeField(Instruction& inst) {
+            if (top(0).objval->type == CLASS) {
                 int idx = inst.operand[0].intval;    
                 string fieldName = *(constPool.get(idx).objval->strval);
                 //cout<<"Class index: "<<idx<<", fieldname: "<<fieldName<<endl;
@@ -366,15 +380,15 @@ class VM {
         }
         void execute(Instruction& inst) {
             switch (inst.op) {
-                case list_append: { appendList();   } break;
-                case list_push:  { pushList(); } break;
-                case list_len:  { listLength(); } break;
+                case list_append: { appendList(); } break;
+                case list_push:   { pushList(); } break;
+                case list_len: { listLength(); } break;
                 case call:     { callProcedure(inst); } break;
                 case retfun:   { retProcedure(); } break;
                 case entblk:   { openBlock(inst); } break;
                 case retblk:   { closeBlock(); } break;
-                case incr:      { top(0).numval += 1; } break;
-                case decr:      { top(0).numval -= 1; } break;
+                case incr:     { top(0).numval += 1; } break;
+                case decr:     { top(0).numval -= 1; } break;
                 case dup:      { duplicateTopOfStack(); } break;
                 case jump:     { uncondBranch(inst); } break;
                 case brf:      { branchOnFalse(inst); } break;
@@ -386,23 +400,19 @@ class VM {
                 case stglobal: { storeGlobal(); } break;
                 case stupval:  { storeUpval(inst); } break;
                 case stlocal:  { storeLocal(inst); } break;
-                case stfield:  { indexed_store(inst); } break;
+                case stidx:    { storeIndexed(inst); } break;
+                case stfield:  { storeField(inst); } break;
                 case ldconst:  { loadConst(inst); } break;
                 case ldglobal: { loadGlobal(inst); } break;
                 case ldupval:  { loadUpval(inst); } break;
                 case ldlocal:  { loadLocal(inst); } break;
-                case ldlocaladdr:  { opstk[++sp] = (inst.operand[0]); } break;
-                case ldglobaladdr: { opstk[++sp] = (inst.operand[0]); } break;
-                case ldfield:      { loadIndexed(inst); } break;
-                case label: { /* nop() */ } break;
+                case ldfield:  { loadField(inst); } break;
+                case ldidx:    { loadIndexed(inst); } break;
+                case ldaddr:    { opstk[++sp] = (inst.operand[0]); } break;
                 case popstack:  { sp--; } break; 
                 case mkclosure: { closeOver(inst); } break;
-                case mkstruct:  { 
-                    ClassObject* master = constPool.get(inst.operand[0].intval).objval->object;
-                    ClassObject* clone = new ClassObject(master->name, master->scope);
-                    clone->instantiated = true;
-                    opstk[++sp] = new GCItem(clone); 
-                } break;
+                case mkstruct:  { instantiate(inst); } break;
+                case label:     { /* nop() */ } break;
                 default:
                     break;
             }       

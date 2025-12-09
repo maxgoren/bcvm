@@ -95,13 +95,8 @@ class  ByteCodeGenerator {
             }
         }
         void emitLoadAddress(SymbolTableEntry& item, astnode* n) {
-            if (n->token.scopeLevel() == GLOBAL_SCOPE) {
-                emit(Instruction(ldglobaladdr, item.addr));
-                if (noisey) cout << "LDGLOBALADDR: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << item.depth<< endl;
-            } else {
-                emit(Instruction(ldlocaladdr, item.addr));
-                if (noisey) cout << "LDLOCALADDR: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << item.depth<< endl;
-            }
+            emit(Instruction(ldaddr, item.addr));
+            if (noisey) cout << "LDLOCALADDR: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << item.depth<< endl;
         }
         void emitLoad(astnode* n, bool needLvalue) {
             if (noisey) cout<<"Compiling ID expression: ";
@@ -140,7 +135,7 @@ class  ByteCodeGenerator {
         void emitListAccess(astnode* n, bool isLvalue) {
             genExpression(n->left, false);
             genExpression(n->right, false);
-            emit(Instruction(isLvalue ? stfield:ldfield));
+            emit(Instruction(isLvalue ? stidx:ldidx));
         }
         void emitFieldAccess(astnode* n, bool isLvalue) {
             cout<<"Emitting Field access for "<<n->left->token.getString()<<"."<<n->right->token.getString()<<endl;
@@ -294,10 +289,10 @@ class  ByteCodeGenerator {
             if (isLambda)
                 return;
             if (fn_info.depth == GLOBAL_SCOPE) {
-                emit(Instruction(ldglobaladdr, fn_info.addr));
+                emit(Instruction(ldaddr, fn_info.addr));
                 emit(Instruction(stglobal, fn_info.addr));
             } else {
-                emit(Instruction(ldlocaladdr, fn_info.addr));
+                emit(Instruction(ldaddr, fn_info.addr));
                 emit(Instruction(stlocal, fn_info.addr));
             }
         }

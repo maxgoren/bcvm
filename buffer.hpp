@@ -105,6 +105,7 @@ class FileStringBuffer : public CharBuffer {
             int j = 0, t = 0;
             for (int k = line_start; k <= line_pos && j <= matchlen; k++) {
                 for (int n = t > 0 ? 0:start; n < lines[line_pos].length() && j <= matchlen; n++, j++) {
+                    if (lines[k][n] == '"') continue;
                     slice.push_back(lines[k][n]);
                 }
                 t++;
