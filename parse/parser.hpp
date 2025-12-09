@@ -263,9 +263,10 @@ class Parser {
          //   cout<<"statement"<<endl;
             astnode* n = nullptr;
             switch (lookahead()) {
+                case TK_PRINT:
                 case TK_PRINTLN: {
                     n = new astnode(PRINT_STMT, current());
-                    match(TK_PRINTLN);
+                    match(lookahead());
                     n->left = expression();
                 } break;
                 case TK_CLASS: {

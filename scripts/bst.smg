@@ -1,0 +1,48 @@
+class TreeNode {
+    let info;
+    let left;
+    let right;
+};
+
+fn put(let tree, let key) {
+    if (tree == nil) {
+        tree := new TreeNode();
+        tree.info := key;
+        return tree;
+    }
+    if (key < tree.info) {
+        tree.left := put(tree.left, key);
+    } else {
+        tree.right := put(tree.right, key);
+    }
+    return tree;
+} 
+
+fn preorder(let xs) {
+    if (xs != nil) {
+        print xs.info + " ";
+        preorder(xs.left);
+        preorder(xs.right);
+    }
+}
+
+fn inorder(let xs) {
+    if (xs != nil) {
+        inorder(xs.left);
+        print xs.info + " ";
+        inorder(xs.right);
+    }
+}
+
+let root := nil;
+root := put(root, 42);
+root := put(root, 13);
+root := put(root, 24);
+root := put(root, 86);
+root := put(root, 7);
+root := put(root, 105);
+println "Preorder: ";
+preorder(root);
+println " ";
+println "In-order: ";
+inorder(root);

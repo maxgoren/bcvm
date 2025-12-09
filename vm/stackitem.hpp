@@ -1,6 +1,7 @@
 #ifndef stackitem_hpp
 #define stackitem_hpp
 #include <iostream>
+#include <unordered_map>
 #include <cmath>
 #include <deque>
 #include "alloc.hpp"
@@ -45,6 +46,7 @@ struct StackItem {
     StackItem(Function* f) { objval = gc.alloc(f); type = OBJECT; }
     StackItem(Closure* c) { objval = gc.alloc(c); type = OBJECT; }
     StackItem(deque<StackItem>* l) { objval = gc.alloc(l); type = OBJECT; }
+    StackItem(ClassObject* o) { objval = gc.alloc(o); type = OBJECT; }
     StackItem(GCItem* i) { objval = i; type = OBJECT; }
     StackItem() { type = NIL; intval = -66; }
     StackItem(const StackItem& si) {
@@ -108,9 +110,30 @@ struct StackItem {
         }
         return false;
     }
+    bool equals(StackItem& rhs) {
+        if (type != rhs.type)
+            return false;
+        switch (type) {
+            case INTEGER: return intval == rhs.intval;
+            case NUMBER:  return numval == rhs.numval;
+            case BOOLEAN: return boolval == rhs.boolval;
+            case NIL:     return true;
+            case OBJECT:  return objval->equals(rhs.objval);
+        }
+        return false;
+    }
     StackItem& add(StackItem& rhs) {
         if (type == OBJECT || rhs.type == OBJECT) {
-            objval = gc.alloc(new string(this->toString() + rhs.toString()));
+            string str;
+            for (char c : toString()) {
+                if (c == '"') continue;
+                str.push_back(c);
+            }
+            for (char c : rhs.toString()) {
+                if (c == '"') continue;
+                str.push_back(c);
+            }
+            objval = gc.alloc(new string(str));
             type = OBJECT;
         } else {
             double v = rhs.type == INTEGER ? rhs.intval:rhs.numval;
@@ -205,7 +228,7 @@ struct StackItem {
 struct ClassObject {
     string name;
     int cpIdx;
-    StackItem fields[255]; 
+    unordered_map<string, StackItem> fields;
     bool instantiated;
     Scope* scope;
     ClassObject(string n = "",  Scope* s = nullptr) {
@@ -217,8 +240,8 @@ struct ClassObject {
 string classToString(ClassObject* obj) {
     if (obj->instantiated) {
         string str = obj->name + "{ ";
-        for (int i = 1; obj->fields[i].type != NIL; i++) {
-            str += to_string(i) + ": " + obj->fields[i].toString() +" ";
+        for (auto m : obj->fields) {
+            str += m.first + ": " + m.second.toString() +" ";
         }
         str += "} ";
         return str;

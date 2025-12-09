@@ -216,41 +216,36 @@ class VM {
                 cout<<"Stored upval at "<<t.intval<<" in scope "<<(inst.operand[0].intval)<<endl;
         }
         void loadIndexed(Instruction& inst) {
+            if (top(0).type == OBJECT && top(0).objval->type == CLASS) {
+                int idx = inst.operand[0].intval;    
+                string fieldName = *(constPool.get(idx).objval->strval);
+                //cout<<"Class index: "<<idx<<", fieldname: "<<fieldName<<endl;
+                auto object = top(0).objval->object;
+                auto item = object->fields[fieldName];
+                top(0) = item;
+                return;
+            }
             if (top(1).type == OBJECT) {
                 switch (top(1).objval->type) {
                     case LIST:
-                        top(1) = (top(1).objval->list->at(top(0).numval)); sp--; break;
+                        top(1) = (top(1).objval->list->at(top(0).numval)); sp--; 
+                        return;
                     case STRING: 
-                        top(1) = (top(1).objval->strval->at(top(0).numval)); sp--; break;
-                    case CLASS: {
-                        int idx = top(0).type == INTEGER ?  top(0).intval:(int)top(0).numval;    
-                        cout<<"Class index: "<<idx<<endl;
-                        top(1) = (top(1).objval->object->fields[idx]);
-                        sp-=2;
-                    }
-                    default:
-                        break;
+                        top(1) = (top(1).objval->strval->at(top(0).numval)); sp--; 
+                        return;
                 }
             }
         }
         void indexed_store(Instruction& inst) {
-            if (top(1).type == OBJECT) {
-                switch (top(1).objval->type) {
-                    case LIST:
-                        top(1).objval->list->at(top(0).numval) = top(2); 
-                        sp--;
-                        break;
-                    /*case STRING: 
-                        top(1).objval->strval->at(top(0).numval) = top(2); break;*/
-                    case CLASS: {
-                        int idx = top(0).type == INTEGER ?  top(0).intval:(int)top(0).numval;    
-                        //cout<<"Class index: "<<idx<<endl;
-                        top(1).objval->object->fields[idx] = top(2);
-                        sp -= 2;
-                    } break;
-                    default:
-                        break;
-                }
+            if (top(1).type == OBJECT && top(1).objval->type == LIST) {
+                top(1).objval->list->at(top(0).numval) = top(2); 
+                sp--;
+            } else if (top(0).objval->type == CLASS) {
+                int idx = inst.operand[0].intval;    
+                string fieldName = *(constPool.get(idx).objval->strval);
+                //cout<<"Class index: "<<idx<<", fieldname: "<<fieldName<<endl;
+                //cout<<"Storing: "<<top(1).toString()<<endl;
+                top(0).objval->object->fields[fieldName] = top(1);
             }
         }
         void duplicateTopOfStack() {
@@ -297,7 +292,7 @@ class VM {
             running = false;
         }
         void printTopOfStack() {
-            cout<<opstk[sp--].toString()<<endl;
+            cout<<opstk[sp--].toString();
         }
         void unaryOperation(Instruction& inst) {
             switch (inst.operand[0].intval) {
@@ -326,16 +321,16 @@ class VM {
                     top(1).boolval = top(0).lessThan(top(1));
                 } break;
                 case VM_LTE: {
-                top(1).boolval = (top(1).lessThan(top(0)) || (!top(1).lessThan(top(0)) && !top(0).lessThan(top(1))));
+                top(1).boolval = (top(1).lessThan(top(0)) || (top(0).equals(top(1))));
                 } break;
                 case VM_GTE: {
-                    top(1).boolval = (top(0).lessThan(top(1)) || (!top(1).lessThan(top(0)) && !top(0).lessThan(top(1))));
+                    top(1).boolval = (top(0).lessThan(top(1)) || (top(0).equals(top(1))));
                 } break;
                 case VM_EQU:  {
-                    top(1).boolval = (!top(1).lessThan(top(0)) && !top(0).lessThan(top(1)));
+                    top(1).boolval = (top(0).equals(top(1))); break;
                 } break;
                 case VM_NEQ: {
-                    top(1).boolval = (top(1).lessThan(top(0)) || top(0).lessThan(top(1)));
+                    top(1).boolval = !(top(0).equals(top(1))); break;
                 } break;
                 case VM_LOGIC_AND: {
                     top(1).boolval = (top(1).boolval && top(0).boolval);
@@ -386,6 +381,7 @@ class VM {
                 case binop:    { binaryOperation(inst); } break;
                 case unop:     { unaryOperation(inst); } break;
                 case print:    { printTopOfStack(); } break;
+                case newline:  { cout<<endl; } break;
                 case halt:     { haltvm(); } break;
                 case stglobal: { storeGlobal(); } break;
                 case stupval:  { storeUpval(inst); } break;

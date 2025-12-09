@@ -111,6 +111,18 @@ struct GCItem {
         }
         return "(nil)";
     }
+    bool equals(GCItem* rhs) {
+        if (type != rhs->type)
+            return false;
+        switch (type) {
+            case STRING: return *strval == *rhs->strval;
+            case FUNCTION: return func->name == rhs->func->name;
+            case LIST: return listToString(list) == listToString(rhs->list);
+            case CLASS: return object == rhs->object;
+            case CLOSURE: return closure == rhs->closure;
+        }
+        return false;
+    }
 };
 
 #endif

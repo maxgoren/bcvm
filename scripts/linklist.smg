@@ -3,15 +3,26 @@ class Link {
     let next;
 };
 
+fn printList(let xs) {
+    if (xs != nil) {
+        println xs.info;
+        printList(xs.next);
+    } else {
+        println "dine";
+    }
+}
 
-let head : Link;
-head := nil;
+let head := nil;
+let tmp := nil;
 let i := 1;
 while (i < 10) {
-    let tmp := new Link();
+    tmp := new Link();
     tmp.info := i;
     tmp.next := head;
     head := tmp;
     i := i + 1;
-    println (i-1) + ": " + head.info;
 }
+println head.info;
+println head.info;
+println head.next;
+printList(head);

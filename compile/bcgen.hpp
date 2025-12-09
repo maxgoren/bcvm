@@ -145,11 +145,8 @@ class  ByteCodeGenerator {
         void emitFieldAccess(astnode* n, bool isLvalue) {
             cout<<"Emitting Field access for "<<n->left->token.getString()<<"."<<n->right->token.getString()<<endl;
             emitLoad(n->left, false);
-            symTable.openObjectScope(n->left->token.getString());
-            emitLoad(n->right, true);
-            cout<<"and Close it."<<endl;
-            symTable.closeScope();
-            emit(Instruction(isLvalue ? stfield:ldfield));
+            int fieldname = symTable.getConstPool().insert(gc.alloc(new string(n->right->token.getString())));
+            emit(Instruction(isLvalue ? stfield:ldfield, fieldname));
         }
         void emitListOperation(astnode* listExpr) {
             auto listname = listExpr->left;
@@ -181,6 +178,8 @@ class  ByteCodeGenerator {
             if (noisey) cout<<"Compiling Print Statement: "<<endl;
             genExpression(n->left, false); 
             emit(Instruction(print));
+            if (n->token.getSymbol() == TK_PRINTLN)
+                emit(Instruction(newline));
         }
         void emitConstant(astnode* n) {
             if (noisey) cout<<"Compiling Constant: "<<n->token.getString()<<endl;

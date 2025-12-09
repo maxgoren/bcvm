@@ -34,11 +34,7 @@ class STBuilder {
                     cout<<"Open scope."<<endl;
                     symTable->openFunctionScope(t->token.getString(), -1);
                     for (auto it = t->left; it != nullptr; it = it->next) {
-                        if (it->right != nullptr) {
-                            symTable->copyObjectScope(it->left->token.getString(), it->right->token.getString());
-                        } else {
-                            buildSymbolTable(it);
-                        }
+                        buildSymbolTable(it);
                     }
                     buildSymbolTable(t->right);
                     symTable->closeScope();
@@ -59,11 +55,7 @@ class STBuilder {
                 case LET_STMT: {
                     switch (t->left->expr) {
                         case ID_EXPR: {
-                            if (t->right != nullptr) {
-                                symTable->copyObjectScope(t->left->token.getString(), t->right->token.getString());
-                            } else {
-                                buildExpressionST(t->left, true); 
-                            }
+                            buildExpressionST(t->left, true); 
                         } break;
                         case BIN_EXPR: {
                             auto binexpr = t->left;
@@ -118,6 +110,7 @@ class STBuilder {
                 case FUNC_EXPR: {
                     buildSymbolTable(t->left);
                     buildSymbolTable(t->right);
+                    return;
                 } break;
                 case LAMBDA_EXPR: {
                     string name = nameLambda();
@@ -137,6 +130,11 @@ class STBuilder {
                     buildSymbolTable(t->left);
                     buildSymbolTable(t->right);
                 } break;
+                case FIELD_EXPR: {
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->next);
+                    return;
+                }
                 default: break;
             }
             buildExpressionST(t->left, fromLet);
@@ -189,6 +187,7 @@ class ResolveLocals {
                 return;
             if (scopes.back().find(name) != scopes.back().end()) {
                 cout<<"A variable with the name "<<name<<" has already been declared."<<endl;
+                return;
             }
             scopes.back().insert(make_pair(name, false));
         }
@@ -196,14 +195,6 @@ class ResolveLocals {
             if (scopes.empty())
                 return;
             scopes.back().at(name) = true;
-        }
-        void resolveObjectField(astnode* t) {
-            cout<<"Resolving Field Reference"<<endl;
-            string objectName = t->left->token.getString();
-            cout<<"Get Object level"<<endl;
-            resolveName(objectName, t->left);
-            cout<<"Field '"<<t->right->token.getString() <<"' is obejctlevel"<<endl;
-            t->right->token.setScopeLevel(t->left->token.scopeLevel());
         }
         void resolveName(string name, astnode* t) {
             for (int i = scopes.size() - 1; i >= 0; i--) {
@@ -302,7 +293,7 @@ class ResolveLocals {
                     resolve(node->right);
                 } break;
                 case FIELD_EXPR: {
-                    resolveObjectField(node);
+                    resolve(node->left);
                     return;
                 } break;
                 case BLESS_EXPR: {
