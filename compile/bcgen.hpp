@@ -187,6 +187,14 @@ class  ByteCodeGenerator {
                     int idx = symTable.getConstPool().insert(StackItem(n->token.getString()));
                     emit(Instruction(ldconst, idx));  
                 } break;
+                case TK_RANDOM: {
+                    double randVal = rand();
+                    if (n->left != nullptr) {
+                        randVal = fmod(randVal, stoi(n->left->token.getString()));
+                    }
+                    int idx = symTable.getConstPool().insert(StackItem(randVal));
+                    emit(Instruction(ldconst, idx));  
+                } break;
                 case TK_TRUE:   emit(Instruction(ldconst, true)); break;
                 case TK_FALSE:  emit(Instruction(ldconst, false)); break;
                 case TK_NIL:    emit(Instruction(ldconst));

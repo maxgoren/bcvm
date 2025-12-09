@@ -164,6 +164,14 @@ class Parser {
                 match(TK_LPAREN);
                 n->right = argsList();
                 match(TK_RPAREN);
+            } else if (expect(TK_RANDOM)) {
+                n = new astnode(CONST_EXPR, current());
+                match(TK_RANDOM);
+                match(TK_LPAREN);
+                if (!expect(TK_RPAREN)) {
+                    n->left = primary();
+                }
+                match(TK_RPAREN);
             }
             if (n != nullptr && (n->expr == ID_EXPR || n->expr == LIST_EXPR)) {
                 n = parseFunctionCallAndSubscripts(n);
