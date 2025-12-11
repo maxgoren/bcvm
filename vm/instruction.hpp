@@ -3,26 +3,26 @@
 #include "stackitem.hpp"
 
 enum VMInstruction {
-    defun, label, 
+    ldrand, ldconst,
     ldfield, ldidx,
-    ldconst, ldglobal, 
-    ldlocal,ldupval,
-    ldaddr, 
+    ldglobal, ldlocal,
+    ldupval, ldaddr, 
     stglobal, stlocal, 
-    stupval, 
-    stfield, stidx,
+    stupval, stfield, 
+    stidx,
     call, retfun, 
     entblk, retblk,
-    jump, brf, incr, decr, dup,
-    binop, unop, mkclosure, 
-    defstruct, mkstruct, popstack,
+    jump, brf, incr, decr,
+    binop, unop, defun, mkclosure, 
+    defstruct, mkstruct, popstack, mkrange,
     list_append, list_push, list_len,
     print, newline, halt
 };
 
-string instrStr[] = { "defun", "label", "ldfield", "ldidx", "ldconst", "ldglobal", "ldlocal", "ldupval", "ldaddr", 
-                     "stglobal", "stlocal", "stupval", "stfield", "stidx", "call", "retfun", "entblk", "retblk", "jump", "brf", "incr", "decr", "dup", 
-                     "binop", "unop", "mkclosure", "defstruct", "mkstruct", "popstack", "append", "push", "list_len", "print", "newline", "halt"};
+string instrStr[] = { "ldrand", "ldconst", "ldfield", "ldidx", "ldglobal", "ldlocal", "ldupval", "ldaddr", 
+                     "stglobal", "stlocal", "stupval", "stfield", "stidx", "call", "retfun", "entblk", "retblk", 
+                     "jump", "brf", "incr", "decr","binop", "unop","defun", "mkclosure", "defstruct", "mkstruct", 
+                     "popstack","mkrange", "append", "push", "list_len", "print", "newline", "halt"};
 
 enum VMOperators {
     VM_ADD = 1, VM_SUB = 2, VM_MUL = 3, VM_DIV = 4, 

@@ -1,10 +1,10 @@
 fn sorting(let xs) {
-    fn swap(let xs, let l, let r) {
+    def swap(let xs, let l, let r) {
         let tmp := xs[l]; 
         xs[l] := xs[r];
         xs[r] := tmp;
     }
-    fn buble(let xs) {
+    fn sort(let xs) {
         let i := 0;
         while (i < xs.size()) {
             let j := (xs.size()) - 1;
@@ -17,7 +17,7 @@ fn sorting(let xs) {
             i := i + 1;
         }
     }
-    buble(xs);
+    sort(xs);
 }
 
 let tmz := [86, 13, 19, 24, 11, 42, 8];

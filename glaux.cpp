@@ -75,6 +75,7 @@ int verbosityLevel(char *str) {
 }
 
 int main(int argc, char* argv[]) {
+    srand(time(0));
     switch (argc) {
         case 1: repl(0); break;
         case 2: repl(verbosityLevel(argv[1]));

@@ -47,3 +47,12 @@ println " ";
 println "In-order: ";
 inorder(root);
 println " ";
+let i := 0;
+while (i < 20) {
+    root := put(root, random(420));
+    i := i + 1;
+}
+preorder(root);
+println " ";
+inorder(root);
+println " ";

@@ -188,12 +188,9 @@ class  ByteCodeGenerator {
                     emit(Instruction(ldconst, idx));  
                 } break;
                 case TK_RANDOM: {
-                    double randVal = rand();
-                    if (n->left != nullptr) {
-                        randVal = fmod(randVal, stoi(n->left->token.getString()));
-                    }
-                    int idx = symTable.getConstPool().insert(StackItem(randVal));
-                    emit(Instruction(ldconst, idx));  
+                    double val = n->left == nullptr ? RAND_MAX:stod(n->left->token.getString());
+                    int idx = symTable.getConstPool().insert(StackItem(val));
+                    emit(Instruction(ldrand, idx));  
                 } break;
                 case TK_TRUE:   emit(Instruction(ldconst, true)); break;
                 case TK_FALSE:  emit(Instruction(ldconst, false)); break;
@@ -250,6 +247,11 @@ class  ByteCodeGenerator {
                 genExpression(it, false);
                 emit(Instruction(list_append));
             }
+        }
+        void emitRangeExpr(astnode* n) {
+            genExpression(n->left, false);
+            genExpression(n->right, false);
+            emit(Instruction(mkrange));
         }
         void emitBlock(astnode* n) {
             int L1 = skipEmit(0);
@@ -381,6 +383,7 @@ class  ByteCodeGenerator {
                 case FIELD_EXPR:     { emitFieldAccess(n, needLvalue); } break;
                 case LIST_EXPR:      { emitListOperation(n); } break;
                 case BLESS_EXPR:     { emitBlessExpr(n); } break;
+                case RANGE_EXPR:     { emitRangeExpr(n); } break;
                 default:
                     break;
             }

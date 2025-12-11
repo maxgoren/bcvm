@@ -39,8 +39,6 @@ class STBuilder {
                     buildSymbolTable(t->right);
                     symTable->closeScope();
                     cout<<"Close scope."<<endl;
-                    buildSymbolTable(t->next);
-                    return;
                 }  break;
                 case BLOCK_STMT: {
                     cout<<"Opening block"<<endl;
@@ -49,8 +47,6 @@ class STBuilder {
                     buildSymbolTable(t->left);
                     symTable->closeScope();
                     cout<<"Close block."<<endl;
-                    buildSymbolTable(t->next);
-                    return;
                 } break;
                 case LET_STMT: {
                     switch (t->left->expr) {
@@ -67,10 +63,12 @@ class STBuilder {
                             }
                         } break;          
                     }
-                    buildSymbolTable(t->next);
-                    return;
                 } break;
                 case IF_STMT: {
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->right);
+                } break;
+                case ELSE_STMT: {
                     buildSymbolTable(t->left);
                     buildSymbolTable(t->right);
                 } break;
@@ -110,7 +108,6 @@ class STBuilder {
                 case FUNC_EXPR: {
                     buildSymbolTable(t->left);
                     buildSymbolTable(t->right);
-                    return;
                 } break;
                 case LAMBDA_EXPR: {
                     string name = nameLambda();
@@ -119,8 +116,6 @@ class STBuilder {
                     buildSymbolTable(t->left);
                     buildSymbolTable(t->right);
                     symTable->closeScope();
-                    buildSymbolTable(t->next);
-                    return;
                 } break;
                 case BLESS_EXPR: {
                     buildSymbolTable(t->left);
@@ -133,12 +128,16 @@ class STBuilder {
                 case FIELD_EXPR: {
                     buildSymbolTable(t->left);
                     buildSymbolTable(t->next);
-                    return;
-                }
-                default: break;
+                } break;
+                case RANGE_EXPR: {
+                    buildSymbolTable(t->left);
+                    buildSymbolTable(t->next);
+                } break;
+                default: 
+                    buildExpressionST(t->left, fromLet);
+                    buildExpressionST(t->right, fromLet);
+                    break;
             }
-            buildExpressionST(t->left, fromLet);
-            buildExpressionST(t->right, fromLet);
             buildSymbolTable(t->next);
         }
         void buildSymbolTable(astnode* t) {
@@ -277,7 +276,6 @@ class ResolveLocals {
                     resolveName(node->left->token.getString(), node->left); 
                     for (auto it = node->right; it != nullptr; it = it->next)
                         resolve(it);
-                    return;   
                 } break;
                 case LAMBDA_EXPR: {
                     openScope(node->token.getString());
@@ -286,7 +284,6 @@ class ResolveLocals {
                     }
                     resolve(node->right);
                     closeScope();
-                    return;
                 }break;
                 case SUBSCRIPT_EXPR: {
                     resolve(node->left);
@@ -294,17 +291,20 @@ class ResolveLocals {
                 } break;
                 case FIELD_EXPR: {
                     resolve(node->left);
-                    return;
                 } break;
                 case BLESS_EXPR: {
                     resolve(node->left);
                     resolve(node->right);
                 } break;
-                default:
-                    break;
+                case RANGE_EXPR: {
+                    resolve(node->left);
+                    resolve(node->right);
+                }
+                default: {
+                    resolve(node->left);
+                    resolve(node->right);
+                } break;
             }
-            resolve(node->left);
-            resolve(node->right);
         }
         void resolve(astnode* node) {
             if (node == nullptr)

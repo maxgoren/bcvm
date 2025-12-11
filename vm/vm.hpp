@@ -1,116 +1,7 @@
 #ifndef vm_hpp
 #define vm_hpp
-#include <vector>
-#include <memory>
-#include "constpool.hpp"
-#include "stackitem.hpp"
-#include "instruction.hpp"
+#include "gc.hpp"
 using namespace std;
-
-static const int MAX_OP_STACK = 1255;
-static const int MAX_LOCAL = 255;
-
-struct ActivationRecord {
-    int cp_index;
-    int num_args;
-    int num_locals;
-    int ret_addr;
-    StackItem locals[MAX_LOCAL];
-    ActivationRecord* control;
-    ActivationRecord* access;
-    ActivationRecord(int idx = -1, int ra = 0, int args = 0, ActivationRecord* calling = nullptr, ActivationRecord* defining = nullptr) {
-        cp_index = idx;
-        ret_addr = ra;
-        num_args = args;
-        control = calling;
-        access = defining;
-    }
-};
-
-class GarbageCollector {
-    private:
-        int GC_LIMIT;
-        void markObject(GCItem* object) {
-            if (object == nullptr)
-                return;
-            vector<GCItem*> sf;
-            sf.push_back(object);
-            while (!sf.empty()) {
-                GCItem* curr = sf.back(); sf.pop_back();
-                if (curr != nullptr && curr->marked == false) {
-                    curr->marked = true;
-                    switch (curr->type) {
-                        case STRING: { cout<<"Marked string: ["<<*curr->strval<<"]"<<endl; } break;
-                        case FUNCTION: { cout<<"Marked function: ["<<curr->func->name<<"]"<<endl; } break;
-                        case CLOSURE: {
-                            cout<<"Marked closure"<<endl;
-                            int numLocals = curr->closure->func->scope->symTable.size();
-                            for (int i = 0; i < 255; i++) {
-                                if (curr->closure->env->locals[i].type == OBJECT) {
-                                    sf.push_back(curr->closure->env->locals[i].objval);
-                                }
-                            }
-                        } break;
-                        case LIST: {      
-                            cout<<"Marked list: "<<curr->toString()<<endl;
-                            for (auto & it : *curr->list) {
-                                if (it.type == OBJECT && it.objval != nullptr) {
-                                    sf.push_back(it.objval);
-                                }
-                            }
-                        } break;
-                        default:
-                            break;
-                    }
-                }   
-            }
-        }
-        void markItem(StackItem& item) {
-            if (item.type == OBJECT) {
-                markObject(item.objval);
-            }
-        }
-    public:
-        GarbageCollector() {
-            GC_LIMIT = 50;
-        }
-        bool ready() {
-            return gc.getLiveList().size() == GC_LIMIT;
-        }
-        void mark(ActivationRecord* callstk, ConstPool& constPool) {
-            cout<<"start mark phase"<<endl;
-            for (auto & it = callstk; it != nullptr; it = it->control) {
-                for (int i = 0; i < 255; i++) {
-                    markItem(it->locals[i]);
-                }
-            }
-            for (int i = 0; i < constPool.size(); i++) {
-                markItem(constPool.get(i));
-            }
-            cout<<"Marking complete."<<endl;
-        }
-        void sweep() {
-            unordered_set<GCItem*> nextGen;
-            unordered_set<GCItem*> toFree;
-            for (auto & it : gc.getLiveList()) {
-                if (it->marked == true) {
-                    nextGen.insert(it);
-                } else {
-                    toFree.insert(it);
-                }
-            }
-            gc.getLiveList().swap(nextGen);
-            cout<<"Collecting: "<<toFree.size()<<", lives: "<<gc.getLiveList().size()<<","<<nextGen.size()<<endl;
-            for (auto it : toFree) {
-                gc.getFreeList().push_back(it);
-            }
-            GC_LIMIT *= 2;
-        }
-        void run(ActivationRecord* callstk, ConstPool& constPool) {
-            mark(callstk, constPool);
-            sweep();
-        }
-};
 
 const int BLOCK_CPIDX = -420;
 
@@ -224,17 +115,6 @@ class VM {
             if (verbLev > 1)
                 cout<<"Stored upval at "<<t.intval<<" in scope "<<(inst.operand[0].intval)<<endl;
         }
-        void loadField(Instruction& inst) {
-            if (top(0).type == OBJECT && top(0).objval->type == CLASS) {
-                int idx = inst.operand[0].intval;    
-                string fieldName = *(constPool.get(idx).objval->strval);
-                //cout<<"Class index: "<<idx<<", fieldname: "<<fieldName<<endl;
-                auto object = top(0).objval->object;
-                auto item = object->fields[fieldName];
-                top(0) = item;
-                return;
-            }
-        }
         void loadIndexed(Instruction& inst) {
             if (top(1).type == OBJECT) {
                 switch (top(1).objval->type) {
@@ -253,22 +133,21 @@ class VM {
                 sp--;
             }
         }
+        void loadField(Instruction& inst) {
+            if (top(0).type == OBJECT && top(0).objval->type == CLASS) {
+                int idx = inst.operand[0].intval;    
+                string fieldName = *(constPool.get(idx).objval->strval);
+                auto object = top(0).objval->object;
+                auto item = object->fields[fieldName];
+                top(0) = item;
+                return;
+            }
+        }
         void storeField(Instruction& inst) {
             if (top(0).objval->type == CLASS) {
                 int idx = inst.operand[0].intval;    
                 string fieldName = *(constPool.get(idx).objval->strval);
-                //cout<<"Class index: "<<idx<<", fieldname: "<<fieldName<<endl;
-                //cout<<"Storing: "<<top(1).toString()<<endl;
                 top(0).objval->object->fields[fieldName] = top(1);
-            }
-        }
-        void duplicateTopOfStack() {
-            StackItem ts = opstk[sp];
-            if (ts.type == OBJECT && ts.objval->type == CLASS) {
-                string name = ts.objval->object->name;
-                cout<<"Duplicating "<<name<<endl;
-            } else {
-                opstk[++sp] = top(0);
             }
         }
         void loadConst(Instruction& inst) {
@@ -277,6 +156,12 @@ class VM {
             } else {
                 opstk[++sp] = (inst.operand[0]);
             }
+        }
+        void loadAddress(Instruction& inst) {
+            opstk[++sp] = (inst.operand[0]); 
+        }
+        void randNumber(Instruction& inst) {
+            opstk[++sp] = fmod(rand(), constPool.get(inst.operand[0].intval).numval); 
         }
         void branchOnFalse(Instruction& inst) {
             bool tmp = opstk[sp--].boolval;
@@ -301,6 +186,18 @@ class VM {
         void listLength() {
             if (top().type == OBJECT && top().objval->type == LIST)
                 opstk[++sp] = ((double)opstk[sp--].objval->list->size());
+        }
+        void makeRange() {
+            double hi = opstk[sp--].numval;
+            double lo = opstk[sp--].numval;
+            if (hi < lo) swap(hi, lo);
+            if (top(0).type != OBJECT || (top(0).objval->type != LIST)) {
+                cout<<"Error: ranges need lists, yo."<<endl;
+                return;
+            }
+            for (int i = lo; i <= hi; i++) {
+                top(0).objval->list->push_back(i);
+            }
         }
         void haltvm() {
             running = false;
@@ -387,9 +284,6 @@ class VM {
                 case retfun:   { retProcedure(); } break;
                 case entblk:   { openBlock(inst); } break;
                 case retblk:   { closeBlock(); } break;
-                case incr:     { top(0).numval += 1; } break;
-                case decr:     { top(0).numval -= 1; } break;
-                case dup:      { duplicateTopOfStack(); } break;
                 case jump:     { uncondBranch(inst); } break;
                 case brf:      { branchOnFalse(inst); } break;
                 case binop:    { binaryOperation(inst); } break;
@@ -408,11 +302,14 @@ class VM {
                 case ldlocal:  { loadLocal(inst); } break;
                 case ldfield:  { loadField(inst); } break;
                 case ldidx:    { loadIndexed(inst); } break;
-                case ldaddr:    { opstk[++sp] = (inst.operand[0]); } break;
-                case popstack:  { sp--; } break; 
+                case ldaddr:    { loadAddress(inst); } break;
                 case mkclosure: { closeOver(inst); } break;
                 case mkstruct:  { instantiate(inst); } break;
-                case label:     { /* nop() */ } break;
+                case mkrange:   { makeRange(); }
+                case ldrand:    { randNumber(inst); } break;
+                case popstack:  { sp--; } break; 
+                case incr:     { top(0).numval += 1; } break;
+                case decr:     { top(0).numval -= 1; } break;
                 default:
                     break;
             }       

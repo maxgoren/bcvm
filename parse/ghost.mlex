@@ -2,6 +2,7 @@
 {"or", TK_OR}
 {"and", TK_AND}
 {"fn", TK_FN}
+{"def", TK_FN}
 {"get", TK_GET}
 {"let", TK_LET}
 {"map", TK_MAP}
@@ -60,6 +61,7 @@
 {"->", TK_PRODUCE}
 {"[,]", TK_COMMA}
 {"[.]", TK_PERIOD}
+{"[.][.]", TK_RANGE};
 {"[A-Za-z][A-Za-z0-9_]*", TK_ID}
 {"\"(.+)\"", TK_STRING}
 {"[0-9]+([.][0-9]+)*", TK_NUM}

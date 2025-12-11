@@ -194,6 +194,13 @@ class Parser {
                 t->left = n;
                 n = t;
             }
+            if (expect(TK_RANGE)) {
+                astnode* t = new astnode(RANGE_EXPR, current());
+                match(TK_RANGE);
+                t->left = n;
+                t->right = primary();
+                n = t;
+            }
             return n;
         }
         astnode* factor() {

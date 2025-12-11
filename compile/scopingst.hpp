@@ -110,7 +110,6 @@ class ScopingST {
         }
         int depth(Scope* s) {
             if (s == nullptr || s->enclosing == nullptr) {
-                cout<<"Rnnnt."<<endl;
                 return -1;
             }
             auto x = s;

@@ -5,6 +5,7 @@
 #include <list>
 #include <deque>
 #include "heapitem.hpp"
+//#include "helpers.hpp"
 using namespace std;
 
 
@@ -30,6 +31,22 @@ class GCAllocator {
             }
             live_items.insert(x);
             return x;
+        }
+        void free(GCItem* item) {
+            if (item == nullptr)
+                return;
+            switch (item->type) {
+                case STRING: {
+                    cout<<"Free string: "<<item->toString()<<endl;
+                } break;
+                case CLASS: {
+                 //   freeClassObject(item);
+                } break;
+                case LIST: {
+                 //   freeListObject(item);
+                } break;
+            };
+            free_list.push_back(item);
         }
         GCItem* alloc(Closure* c) {
             GCItem* x;
