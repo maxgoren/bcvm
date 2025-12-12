@@ -26,7 +26,12 @@ class  ByteCodeGenerator {
             return symTable.lookup(varname, ln);
         }
         void emit(Instruction inst) {
-            code[cpos++] = inst;
+            if (cpos+1 == code.max_size()) {
+                code.push_back(inst);
+                cpos = code.size()-1;
+            } else {
+                code[cpos++] = inst;
+            }
             if (cpos > highCI)
                 highCI = cpos;
         }
@@ -80,23 +85,29 @@ class  ByteCodeGenerator {
             }
         }
         void emitUnaryOperator(astnode* n) {
-            genCode(n->left, false);
             switch (n->token.getSymbol()) {
                 case TK_INCREMENT: { 
+                    genCode(n->left, false);
+                    emit(Instruction(dup));
                     emit(Instruction(incr)); 
                     genCode(n->left, true);
+                    emitStore(n);
                 } break;
                 case TK_DECREMENT: { 
+                    genCode(n->left, false);
+                    emit(Instruction(dup));
                     emit(Instruction(decr)); 
                     genCode(n->left, true);
+                    emitStore(n);
                 } break;
                 default:
+                    genCode(n->left, false);
                     emit(Instruction(unop, VM_NEG));
             }
         }
         void emitLoadAddress(SymbolTableEntry& item, astnode* n) {
             emit(Instruction(ldaddr, item.addr));
-            if (noisey) cout << "LDLOCALADDR: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << item.depth<< endl;
+            if (noisey) cout << "LDADDR: " << n->token.getString()<<"scopelevel="<<n->token.scopeLevel() << " depth=" << item.depth<< endl;
         }
         void emitLoad(astnode* n, bool needLvalue) {
             if (noisey) cout<<"Compiling ID expression: ";
@@ -150,6 +161,7 @@ class  ByteCodeGenerator {
                 return;
             switch (operation->token.getSymbol()) {
                 case TK_APPEND: {
+                    cout<<"Append op"<<endl;
                     genExpression(listname, false);
                     genExpression(operation->left, false);
                     emit(Instruction(list_append));
@@ -243,12 +255,16 @@ class  ByteCodeGenerator {
         }
         void emitListConstructor(astnode* n) {
             emit(Instruction(ldconst, symTable.getConstPool().insert(new deque<StackItem>())));
-            for (astnode* it = n->left; it != nullptr; it = it->next) {
-                genExpression(it, false);
-                emit(Instruction(list_append));
+            if (n->left != nullptr) {
+                for (astnode* it = n->left; it != nullptr; it = it->next) {
+                    cout<<"Adding to list: "<<endl;
+                    genExpression(it, false);
+                    emit(Instruction(list_append));
+                }
             }
         }
         void emitRangeExpr(astnode* n) {
+            cout<<"Range expression."<<endl;
             genExpression(n->left, false);
             genExpression(n->right, false);
             emit(Instruction(mkrange));
@@ -424,7 +440,8 @@ class  ByteCodeGenerator {
         }
     public:
         ByteCodeGenerator() {
-            code = vector<Instruction>(255, Instruction(halt, 0));
+            code = vector<Instruction>(1024, Instruction(halt, 0));
+            code.resize(1024);
             cpos = 0;
             highCI = 0;
             noisey = true;
@@ -443,6 +460,7 @@ class  ByteCodeGenerator {
             for (int i = 0; i < symTable.getConstPool().size(); i++) {
                 cout<<i<<": {"<<symTable.getConstPool().get(i).toString()<<"}"<<endl;
             }
+            cout<<"HighCI: "<<cpos<<endl;
             cout<<"-------------------"<<endl;
             return code;
         }

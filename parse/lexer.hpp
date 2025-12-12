@@ -74,12 +74,12 @@ vector<Token> Lexer::lex(CharBuffer* buff) {
         }
         if (next.getSymbol() != TK_EOI && !in_comment) {
             tokens.push_back(next);
+            cout<<"Recognized: {'"<<tokens.back().getString()<<"'}"<<endl;
         } else {
             if (next.getSymbol() == TK_CLOSE_COMMENT)
                 in_comment = false;
             buffer->advance();
         }
-        cout<<"Recognized: {'"<<tokens.back().getString()<<"'}"<<endl;
     }
     tokens.push_back(Token(TK_EOI, "<fin>"));
     return tokens;

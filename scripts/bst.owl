@@ -1,22 +1,33 @@
+
 class TreeNode {
     let info;
+    let color;
     let left;
     let right;
 };
 
-fn put(let tree, let key) {
+
+fn putR(let tree, let key) {
     if (tree == nil) {
         tree := new TreeNode();
         tree.info := key;
         return tree;
     }
     if (key < tree.info) {
-        tree.left := put(tree.left, key);
+        tree.left := putR(tree.left, key);
     } else {
-        tree.right := put(tree.right, key);
+        tree.right := putR(tree.right, key);
     }
     return tree;
 } 
+
+fn put(let tree, let key) {
+    tree := putR(tree, key);
+    if (tree != nil) {
+        tree.color := black;
+    }
+    return tree;
+}
 
 fn preorder(let xs) {
     if (xs != nil) {
@@ -41,18 +52,5 @@ root := put(root, 24);
 root := put(root, 86);
 root := put(root, 7);
 root := put(root, 105);
-println "Preorder: ";
 preorder(root);
-println " ";
-println "In-order: ";
-inorder(root);
-println " ";
-let i := 0;
-while (i < 20) {
-    root := put(root, random(420));
-    i := i + 1;
-}
-preorder(root);
-println " ";
-inorder(root);
 println " ";

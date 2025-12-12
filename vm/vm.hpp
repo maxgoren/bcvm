@@ -195,9 +195,14 @@ class VM {
                 cout<<"Error: ranges need lists, yo."<<endl;
                 return;
             }
+            cout<<"Creating set of integers from "<<lo<<" to "<<hi<<endl;
             for (int i = lo; i <= hi; i++) {
-                top(0).objval->list->push_back(i);
+                top(0).objval->list->push_back((double)i);
             }
+        }
+        void duplicateTop() {
+            auto item = top(0);
+            opstk[++sp] = item;
         }
         void haltvm() {
             running = false;
@@ -308,6 +313,7 @@ class VM {
                 case mkrange:   { makeRange(); }
                 case ldrand:    { randNumber(inst); } break;
                 case popstack:  { sp--; } break; 
+                //case dup:      { duplicateTop(); } break;
                 case incr:     { top(0).numval += 1; } break;
                 case decr:     { top(0).numval -= 1; } break;
                 default:

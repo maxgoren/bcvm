@@ -12,14 +12,28 @@ fn printList(let xs) {
     }
 }
 
+fn insert(let xs, let k) {
+    if (xs == nil) {
+        xs := new Link();
+        xs.info := k;
+        return xs;
+    }
+    if (k < xs.info) {
+        let t := new Link();
+        t.info := k;
+        t.next := xs;
+        xs := t;
+    } else {
+        xs.next := insert(xs.next, k);
+    }
+    return xs;
+}
+
 let head := nil;
-let tmp := nil;
 let i := 1;
-while (i < 10) {
-    tmp := new Link();
-    tmp.info := random(100);
-    tmp.next := head;
-    head := tmp;
-    i := i + 1;
+while (i <= 10) {
+    head := insert(head, random(100));
+    i++;
 }
 printList(head);
+println head;

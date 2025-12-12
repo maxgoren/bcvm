@@ -9,7 +9,7 @@ enum VMInstruction {
     ldupval, ldaddr, 
     stglobal, stlocal, 
     stupval, stfield, 
-    stidx,
+    stidx, dup,
     call, retfun, 
     entblk, retblk,
     jump, brf, incr, decr,
@@ -20,7 +20,7 @@ enum VMInstruction {
 };
 
 string instrStr[] = { "ldrand", "ldconst", "ldfield", "ldidx", "ldglobal", "ldlocal", "ldupval", "ldaddr", 
-                     "stglobal", "stlocal", "stupval", "stfield", "stidx", "call", "retfun", "entblk", "retblk", 
+                     "stglobal", "stlocal", "stupval", "stfield", "stidx", "dup", "call", "retfun", "entblk", "retblk", 
                      "jump", "brf", "incr", "decr","binop", "unop","defun", "mkclosure", "defstruct", "mkstruct", 
                      "popstack","mkrange", "append", "push", "list_len", "print", "newline", "halt"};
 

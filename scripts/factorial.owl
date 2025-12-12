@@ -15,5 +15,5 @@ listFacts(10);
 let i := 1;
 while (i < 10) {
 	println fact(i);
-	i := i + 1;
+	i++;
 }
