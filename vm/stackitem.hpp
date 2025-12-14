@@ -4,15 +4,13 @@
 #include <unordered_map>
 #include <cmath>
 #include <deque>
-#include "alloc.hpp"
+#include "heapitem.hpp"
 using namespace std;
 
 
 enum SIType {
     NIL, INTEGER, NUMBER, BOOLEAN, OBJECT
  };
-
-GCAllocator gc;
 
 struct StackItem {
     int type;
@@ -42,11 +40,11 @@ struct StackItem {
     StackItem(int value) { intval = value; type = INTEGER; }
     StackItem(double value) { numval = value; type = NUMBER; }
     StackItem(bool balue) { boolval = balue; type = BOOLEAN; }
-    StackItem(string value) { objval = gc.alloc(new string(value)); type = OBJECT; }
-    StackItem(Function* f) { objval = gc.alloc(f); type = OBJECT; }
-    StackItem(Closure* c) { objval = gc.alloc(c); type = OBJECT; }
-    StackItem(deque<StackItem>* l) { objval = gc.alloc(l); type = OBJECT; }
-    StackItem(ClassObject* o) { objval = gc.alloc(o); type = OBJECT; }
+    StackItem(string value) { objval = new GCItem(new string(value)); type = OBJECT; }
+    StackItem(Function* f) { objval = new GCItem(f); type = OBJECT; }
+    StackItem(Closure* c) { objval = new GCItem(c); type = OBJECT; }
+    StackItem(deque<StackItem>* l) { objval = new GCItem(l); type = OBJECT; }
+    StackItem(ClassObject* o) { objval = new GCItem(o); type = OBJECT; }
     StackItem(GCItem* i) { objval = i; type = OBJECT; }
     StackItem() { type = NIL; intval = -66; }
     StackItem(const StackItem& si) {
@@ -77,7 +75,7 @@ struct StackItem {
                     case INTEGER: return intval < si.intval;
                     case NUMBER: return  numval < si.intval;
                     case BOOLEAN: return boolval < si.intval;
-                    case STRING: return 1;
+                    case OBJECT: return 1;
                 }
             } break;
             case BOOLEAN: {
@@ -85,7 +83,7 @@ struct StackItem {
                     case INTEGER: return intval < si.boolval;
                     case NUMBER: return  numval < si.boolval;
                     case BOOLEAN: return boolval < si.boolval;
-                    case STRING: 1;
+                    case OBJECT: 1;
                 }
             } break;
             case NUMBER: {
@@ -93,10 +91,10 @@ struct StackItem {
                     case INTEGER: return intval < si.numval;
                     case NUMBER:  return  numval < si.numval;
                     case BOOLEAN: return boolval < si.numval;
-                    case STRING: 1;
+                    case OBJECT: 1;
                 }
             } break;
-            case STRING: {
+            case OBJECT: {
             switch (type) {
                     case INTEGER: return false;
                     case NUMBER: return  false;
@@ -131,7 +129,7 @@ struct StackItem {
             for (char c : rhs.toString()) {
                 str.push_back(c);
             }
-            objval = gc.alloc(new string(str));
+            objval = new GCItem(new string(str));
             type = OBJECT;
         } else {
             double v = rhs.type == INTEGER ? rhs.intval:rhs.numval;
@@ -223,7 +221,7 @@ struct StackItem {
     }
 };
 
-struct ClassObject {
+struct ClassObject  {
     string name;
     int cpIdx;
     unordered_map<string, StackItem> fields;

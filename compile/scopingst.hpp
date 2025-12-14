@@ -2,6 +2,7 @@
 #define scopingst_hpp
 #include "../vm/stackitem.hpp"
 #include "../vm/constpool.hpp"
+#include "../vm/callframe.hpp"
 #include <map>
 #include <vector>
 #include <iostream>
@@ -145,7 +146,7 @@ class ScopingST {
                 ns->enclosing = st;
                 ClassObject* obj = new ClassObject(name, ns);
                 objectDefs.insert(make_pair(name, obj));
-                int constIdx = constPool.insert(gc.alloc(obj));
+                int constIdx = constPool.insert(new GCItem(obj));
                 int envAddr = nextAddr();
                 objectDefs[name]->cpIdx = constIdx;
                 st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(st)+1));

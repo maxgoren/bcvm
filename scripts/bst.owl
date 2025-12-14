@@ -54,3 +54,5 @@ root := put(root, 7);
 root := put(root, 105);
 preorder(root);
 println " ";
+inorder(root);
+println " ";

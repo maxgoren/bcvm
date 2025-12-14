@@ -94,7 +94,6 @@ class ConstPool {
                     if (!data[i].objval->marked) {
                         freeList.push(i);
                         data[i].type = NIL;
-                        gc.free(data[i].objval);
                     }
                 }
             }

@@ -7,26 +7,6 @@
 #include "instruction.hpp"
 using namespace std;
 
-static const int MAX_OP_STACK = 1255;
-static const int MAX_LOCAL = 255;
-
-struct ActivationRecord {
-    int cp_index;
-    int num_args;
-    int num_locals;
-    int ret_addr;
-    StackItem locals[MAX_LOCAL];
-    ActivationRecord* control;
-    ActivationRecord* access;
-    ActivationRecord(int idx = -1, int ra = 0, int args = 0, ActivationRecord* calling = nullptr, ActivationRecord* defining = nullptr) {
-        cp_index = idx;
-        ret_addr = ra;
-        num_args = args;
-        control = calling;
-        access = defining;
-    }
-};
-
 void markObject(GCItem* object) {
     if (object == nullptr)
         return;
@@ -69,9 +49,6 @@ class GarbageCollector {
         GarbageCollector() {
             GC_LIMIT = 50;
         }
-        bool ready() {
-            return gc.getLiveList().size() == GC_LIMIT;
-        }
         void mark(ActivationRecord* callstk, ConstPool& constPool) {
             cout<<"start mark phase"<<endl;
             for (auto & it = callstk; it != nullptr; it = it->control) {
@@ -87,17 +64,8 @@ class GarbageCollector {
         void sweep() {
             unordered_set<GCItem*> nextGen;
             unordered_set<GCItem*> toFree;
-            for (auto & it : gc.getLiveList()) {
-                if (it->marked == true) {
-                    nextGen.insert(it);
-                } else {
-                    toFree.insert(it);
-                }
-            }
-            gc.getLiveList().swap(nextGen);
             cout<<"Collecting: "<<toFree.size()<<endl;
             for (auto it : toFree) {
-                gc.free(it);
             }
             GC_LIMIT *= 2;
         }

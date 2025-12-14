@@ -14,7 +14,9 @@ fn isEven(let m) {
 }
 fn cufibs(let m) {
 	if (m < 40) {
+		if (isEven(m)) {
 			println fib(m);
+		}
 		return cufibs(m+1);
 	}
 }

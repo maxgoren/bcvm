@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <list>
 #include <deque>
+#include "gcobject.hpp"
 using namespace std;
 
 enum GCType {
@@ -36,35 +37,16 @@ Function* makeFunction(string name, int start, Scope* s) {
     return new Function(name, start, s); 
 }
 
-struct ActivationRecord;
-
-struct Closure {
-    Function* func;
-    ActivationRecord* env;
-    Closure(Function* f, ActivationRecord* e) : func(f), env(e) { }
-    Closure(Function* f) : func(f), env(nullptr) { }
-    Closure(const Closure& c) {
-        func = c.func;
-        env = c.env;
-    }
-    Closure& operator=(const Closure& c) {
-        if (this != &c) {
-            func = c.func;
-            env = c.env;
-        }
-        return *this;
-    }
-};
-
 struct StackItem;
 struct ClassObject;
+struct Closure;
 
+string closureToString(Closure* cl);
 string listToString(deque<StackItem>* list);
 string classToString(ClassObject* obj);
 
-struct GCItem {
+struct GCItem : GCObject {
     GCType type;
-    bool marked;
     union {
         string* strval;
         Function* func;
@@ -105,7 +87,7 @@ struct GCItem {
         switch (type) {
             case STRING: return *(strval);
             case FUNCTION: return "(func)" + func->name;
-            case CLOSURE: return "(closure)" + closure->func->name + ", " + to_string(closure->func->start_ip);
+            case CLOSURE: return closureToString(closure);
             case LIST: return listToString(list);
             case CLASS: return "(class)" + classToString(object);
         }

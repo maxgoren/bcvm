@@ -1,0 +1,20 @@
+{* Testing objects pointing to objects (pointing to objects, etc.) *}
+
+class Link {
+   let info;
+   let next;
+};
+
+let a := new Link();
+a.info := 13;
+let b := new Link();
+b.info := 42;
+a.next := b;
+a.next.next := new Link();
+a.next.next.info := 37;
+println a.info;
+println a.next.info;
+println a.next.next.info;
+a.next.next.next := new Link();
+a.next.next.next.info := 15;
+println a;

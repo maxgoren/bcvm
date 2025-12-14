@@ -45,16 +45,17 @@ class VM {
         }
         void closeOver(Instruction& inst) {
             int func_id = inst.operand[0].intval;
-            auto closure = constPool.get(func_id).objval->closure;
-            closure->env = mostRecentAR(func_id);
-            opstk[++sp] = StackItem(gc.alloc(new Closure(closure->func, closure->env)));
+            auto func = constPool.get(func_id).objval->closure->func;
+            auto env = mostRecentAR(func_id);
+            opstk[++sp] = StackItem(new GCItem(new Closure(func, env)));
         }
         void openBlock(Instruction& inst) {
             callstk = new ActivationRecord(BLOCK_CPIDX, ip, inst.operand[1].intval, callstk, callstk);
         }
         void closeBlock() {
-            if (callstk != nullptr && callstk->control != nullptr)
+            if (callstk != nullptr && callstk->control != nullptr) {
                 callstk = callstk->control;
+            }
             if (verbLev > 1)
                 cout<<"Leaving scope."<<endl;
         }
@@ -385,6 +386,9 @@ class VM {
             haltSentinel = Instruction(halt);
             globals =  new ActivationRecord(GLOBAL_SCOPE,0, 0, nullptr, nullptr);
             callstk = globals;
+        }
+        ~VM() {
+            delete callstk;
         }
         void setConstPool(ConstPool& cp) {
             constPool = cp;
