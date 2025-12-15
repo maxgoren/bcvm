@@ -24,7 +24,9 @@ struct ActivationRecord : GCObject {
         control = calling;
         access = defining;
         refCount = 1;
+        isAR = true;
         if (access) access->refCount += 1;
+        gc.getLiveList().insert(this);
     }
     ~ActivationRecord() {
         if (access && --access->refCount == 0) {

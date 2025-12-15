@@ -5,9 +5,6 @@
 #include "stackitem.hpp"
 using namespace std;
 
-class WeakReference {
-    private:
-};
 
 class ConstPool {
     private:
@@ -92,6 +89,7 @@ class ConstPool {
             for (int i = 0; i < n; i++) {
                 if (data[i].type == OBJECT && data[i].objval != nullptr) {
                     if (!data[i].objval->marked) {
+                        cout<<"Found unmarked root in constant table: "<<data[i].toString()<<endl;
                         freeList.push(i);
                         data[i].type = NIL;
                     }

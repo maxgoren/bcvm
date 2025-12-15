@@ -123,7 +123,10 @@ class VM {
                         top(1) = (top(1).objval->list->at(top(0).numval)); sp--; 
                         return;
                     case STRING: 
-                        top(1) = (top(1).objval->strval->at(top(0).numval)); sp--; 
+                        char c = top(1).objval->strval->at(top(0).numval);
+                        string str;
+                        str.push_back(c);
+                        top(1) = (gc.alloc(new string(str))); sp--; 
                         return;
                 }
             }
@@ -314,7 +317,6 @@ class VM {
                 case mkrange:   { makeRange(); }
                 case ldrand:    { randNumber(inst); } break;
                 case popstack:  { sp--; } break; 
-                //case dup:      { duplicateTop(); } break;
                 case incr:     { top(0).numval += 1; } break;
                 case decr:     { top(0).numval -= 1; } break;
                 default:
@@ -412,6 +414,7 @@ class VM {
                 }
                 if (verbosity > 0) cout<<"================"<<endl;
             }
+            collector.run(callstk, constPool);
         }
 };
 

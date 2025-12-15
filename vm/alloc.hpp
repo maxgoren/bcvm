@@ -5,14 +5,13 @@
 #include <list>
 #include <deque>
 #include "heapitem.hpp"
-//#include "helpers.hpp"
 using namespace std;
 
 
 class GCAllocator {
     private:
         friend class GarbageCollector;
-        unordered_set<GCItem*> live_items;
+        unordered_set<GCObject*> live_items;
         list<GCItem*> free_list;
     public:
         GCAllocator() {
@@ -38,12 +37,14 @@ class GCAllocator {
             switch (item->type) {
                 case STRING: {
                     cout<<"Free string: "<<item->toString()<<endl;
+                    delete item->strval;
                 } break;
                 case CLASS: {
                  //   freeClassObject(item);
                 } break;
                 case LIST: {
-                 //   freeListObject(item);
+                   cout<<"Free list: "<<item->toString()<<endl;
+                   delete item->list;
                 } break;
             };
             free_list.push_back(item);
@@ -104,7 +105,7 @@ class GCAllocator {
             live_items.insert(x);
             return x;
         }
-        unordered_set<GCItem*>& getLiveList() {
+        unordered_set<GCObject*>& getLiveList() {
             return live_items;
         }
         list<GCItem*> getFreeList() {

@@ -88,14 +88,12 @@ class  ByteCodeGenerator {
             switch (n->token.getSymbol()) {
                 case TK_INCREMENT: { 
                     genCode(n->left, false);
-                    emit(Instruction(dup));
                     emit(Instruction(incr)); 
                     genCode(n->left, true);
                     emitStore(n);
                 } break;
                 case TK_DECREMENT: { 
                     genCode(n->left, false);
-                    emit(Instruction(dup));
                     emit(Instruction(decr)); 
                     genCode(n->left, true);
                     emitStore(n);
@@ -244,7 +242,6 @@ class  ByteCodeGenerator {
             emitStoreFuncInEnvironment(n, true);
         }
         void emitBlessExpr(astnode* n) {
-            cout<<"Let their be life..."<<endl;
             int L1 = skipEmit(0);
             skipEmit(1);
             int i = 0;
@@ -272,14 +269,12 @@ class  ByteCodeGenerator {
             emit(Instruction(ldconst, symTable.getConstPool().insert(new deque<StackItem>())));
             if (n->left != nullptr) {
                 for (astnode* it = n->left; it != nullptr; it = it->next) {
-                    cout<<"Adding to list: "<<endl;
                     genExpression(it, false);
                     emit(Instruction(list_append));
                 }
             }
         }
         void emitRangeExpr(astnode* n) {
-            cout<<"Range expression."<<endl;
             genExpression(n->left, false);
             genExpression(n->right, false);
             emit(Instruction(mkrange));
@@ -293,7 +288,7 @@ class  ByteCodeGenerator {
             emit(Instruction(retblk));
         }
         void emitClassDef(astnode* n) {
-            cout<<"Compiling class Definition: "<<n->left->token.getString()<<endl;
+            if (noisey) cout<<"Compiling class Definition: "<<n->left->token.getString()<<endl;
             int L1 = skipEmit(0);
             skipEmit(1);
             string name = n->left->token.getString();
