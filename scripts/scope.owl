@@ -1,10 +1,11 @@
 let x := "global";
 fn out() {
     let x := "inz";
-    fn inn() {
-        println x;
+    fn inn(let y) {
+        return &() { print y+x; return x; };
     }
-    inn();
+    let t := inn(x);
+    println t();
 }
 out();
 println x;

@@ -3,6 +3,7 @@
 #include "../vm/stackitem.hpp"
 #include "../vm/constpool.hpp"
 #include "../vm/callframe.hpp"
+#include "../vm/closure.hpp"
 #include <map>
 #include <vector>
 #include <iostream>
@@ -13,6 +14,7 @@ const unsigned int MAX_LOCALS = 255;
 struct Scope;
 
 enum SymTableType {
+    NONE = 0,
     LOCALVAR = 1,
     FUNCVAR = 2,
     CLASSVAR = 3
@@ -20,14 +22,14 @@ enum SymTableType {
 
 struct SymbolTableEntry {
     string name;
-    int type;
+    SymTableType type;
     int addr;
     int depth;
     int constPoolIndex;
     int lineNum;
-    SymbolTableEntry(string n, int adr, int cpi, int t, int d) : type(t), addr(adr), name(n), depth(d), constPoolIndex(cpi), lineNum(0) { }
-    SymbolTableEntry(string n, int adr, int d) : type(1), name(n), addr(adr), depth(d), constPoolIndex(-1), lineNum(0) { }
-    SymbolTableEntry() : type(0), addr(-1), constPoolIndex(-1), lineNum(0) { }
+    SymbolTableEntry(string n, int adr, int cpi, SymTableType t, int d) : type(t), addr(adr), name(n), depth(d), constPoolIndex(cpi), lineNum(0) { }
+    SymbolTableEntry(string n, int adr, int d) : type(LOCALVAR), name(n), addr(adr), depth(d), constPoolIndex(-1), lineNum(0) { }
+    SymbolTableEntry() : type(NONE), addr(-1), constPoolIndex(-1), lineNum(0) { }
     SymbolTableEntry(const SymbolTableEntry& e) {
         name = e.name;
         type = e.type;
@@ -56,42 +58,56 @@ struct SymbolTableEntry {
 };
 
 
-struct BlockScope {
-    SymbolTableEntry data[MAX_LOCALS];
-    int n = 0;
-    BlockScope() {
-        n = 0;
-    }
-    int size() {
-        return n;
-    }
-    void insert(string name, SymbolTableEntry st) {
-        cout<<st.name<<" added with address "<<st.addr<<" in positon "<<n<<endl;
-        data[n++] = st;
-    }
-    SymbolTableEntry& find(string name) {
-        int i = n-1;
-        while (i >= 0) {
-            if (data[i].name == name) {
-                return data[i];
+class BlockScope {
+    private:
+        friend class ScopingST;
+        int hash(string n) {
+            int h = 3178;
+            for (char c : n) {
+                h = (h << 27) | (h >> 5);
+                h = (33*h+(int)c);
             }
-            i--;
+            
+            return (h % MAX_LOCALS) + 1;
         }
-        return end();
-    }
-    SymbolTableEntry& end() {
-        return data[n];
-    }
-    SymbolTableEntry& operator[](string name) {
-        for (int i = n-1; i >= 0; i--) {
-            if (data[i].name == name) {
-                return data[i];
+        SymbolTableEntry data[MAX_LOCALS];
+        int n;
+    public:
+        BlockScope() {
+            n = 0;
+        }
+        int size() {
+            return n;
+        }
+        void insert(string name, SymbolTableEntry st) {
+            int idx = hash(name);
+            while (data[idx].type != NONE || idx == 0) {
+                if (data[idx].name == name) {
+                    break;
+                }
+                idx = (idx + 1) % MAX_LOCALS;
             }
+            data[idx] = st;
+            n++;
         }
-        data[n] = SymbolTableEntry(name, n, -1);
-        n++;
-        return data[n-1];
-    }
+        SymbolTableEntry& find(string name) {
+            int idx = hash(name);
+            while (data[idx].type != NONE) {
+                if (data[idx].name == name) {
+                    return data[idx];
+                }
+                idx = (idx + 1) % MAX_LOCALS;
+            }
+            return end();
+        }
+        SymbolTableEntry& end() {
+            return data[0];
+        }
+        SymbolTableEntry& operator[](string name) {
+            if (find(name) == end())
+                insert(name, SymbolTableEntry(name, n, -1));
+            return find(name);
+        }
 };
 
 struct Scope {
@@ -101,12 +117,12 @@ struct Scope {
 
 class ScopingST {
     private:
-        Scope* st;
+        Scope* currentScope;
         ConstPool constPool;
         SymbolTableEntry nfSentinel;
         unordered_map<string, ClassObject*> objectDefs;
         int nextAddr() {
-            int na = st->symTable.size()+1;
+            int na = currentScope->symTable.size()+1;
             return na;
         }
         int depth(Scope* s) {
@@ -121,70 +137,85 @@ class ScopingST {
             }
             return d-1;
         }
+        void printST(Scope* s, int d) {
+            auto x = s;
+            for (int i = 0; i < MAX_LOCALS; i++) {
+                auto m = x->symTable.data[i];
+                if (m.type != NONE) {
+                    for (int i = 0; i < d; i++) cout<<"  ";
+                    cout<<m.name<<": "<<m.addr<<", "<<m.depth<<endl;
+                    if (m.type == 2) {
+                        printST(constPool.get(m.constPoolIndex).objval->closure->func->scope,d + 1);
+                    } else if (m.type == 3) {
+                        printST(constPool.get(m.constPoolIndex).objval->object->scope, d+1);
+                    }
+                }
+            }
+        }
     public:
         ScopingST() {
-            st = new Scope();
-            st->enclosing = nullptr;
+            currentScope = new Scope();
+            currentScope->enclosing = nullptr;
             nfSentinel = SymbolTableEntry("not found", -1, -1);
         }
         ConstPool& getConstPool() {
             return constPool;
         }
         void openObjectScope(string name) {
-            if (st->symTable.find(name) != st->symTable.end()) {
-                 if (st->symTable.find(name).type == CLASSVAR) {
+            if (currentScope->symTable.find(name) != currentScope->symTable.end()) {
+                 if (currentScope->symTable.find(name).type == CLASSVAR) {
                     cout<<"Reopened Object scope for "<<name<<endl;
-                    Scope* ns = constPool.get(st->symTable.find(name).constPoolIndex).objval->object->scope;
-                    st = ns;
+                    Scope* ns = constPool.get(currentScope->symTable.find(name).constPoolIndex).objval->object->scope;
+                    currentScope = ns;
                  } else {
                     Scope* ns = new Scope();
-                    ns->enclosing = st;
-                    st = ns;
+                    ns->enclosing = currentScope;
+                    currentScope = ns;
                  }
             } else {
                 Scope* ns = new Scope;
-                ns->enclosing = st;
+                ns->enclosing = currentScope;
                 ClassObject* obj = new ClassObject(name, ns);
                 objectDefs.insert(make_pair(name, obj));
-                int constIdx = constPool.insert(new GCItem(obj));
+                int constIdx = constPool.insert(gc.alloc(obj));
                 int envAddr = nextAddr();
                 objectDefs[name]->cpIdx = constIdx;
-                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(st)+1));
-                st = ns;
+                currentScope->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(currentScope)+1));
+                currentScope = ns;
             }
         }
         void copyObjectScope(string instanceName, string objName) {
             Scope* sc = objectDefs[objName]->scope;
-            st->symTable.insert(instanceName, SymbolTableEntry(instanceName, nextAddr(), objectDefs[objName]->cpIdx, CLASSVAR, depth(st)+1));
+            currentScope->symTable.insert(instanceName, SymbolTableEntry(instanceName, nextAddr(), objectDefs[objName]->cpIdx, CLASSVAR, depth(currentScope)+1));
         }
         void openFunctionScope(string name, int L1) {
-            if (st->symTable.find(name) != st->symTable.end()) {
-                Scope* ns = constPool.get(st->symTable[name].constPoolIndex).objval->closure->func->scope;
-                constPool.get(st->symTable[name].constPoolIndex).objval->closure->func->start_ip = L1;
-                st = ns;
+            if (currentScope->symTable.find(name) != currentScope->symTable.end()) {
+                Scope* ns = constPool.get(currentScope->symTable[name].constPoolIndex).objval->closure->func->scope;
+                constPool.get(currentScope->symTable[name].constPoolIndex).objval->closure->func->start_ip = L1;
+                currentScope = ns;
             } else {
                 Scope*  ns = new Scope;
-                ns->enclosing = st;
+                ns->enclosing = currentScope;
                 Function* f = makeFunction(name, L1, ns);
                 int constIdx = constPool.insert(new Closure(f));
                 int envAddr = nextAddr();
-                st->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, FUNCVAR, depth(st)+1));
-                st = ns;
+                currentScope->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, FUNCVAR, depth(currentScope)+1));
+                currentScope = ns;
             }
         }
         void closeScope() {
-            if (st != nullptr && st->enclosing != nullptr) {
-                st = st->enclosing;
+            if (currentScope != nullptr && currentScope->enclosing != nullptr) {
+                currentScope = currentScope->enclosing;
             }
         }
         void insert(string name) {
-            st->symTable[name] = SymbolTableEntry(name, nextAddr(), depth(st));
+            currentScope->symTable[name] = SymbolTableEntry(name, nextAddr(), depth(currentScope));
         }
         bool existsInScope(string name) {
-            return st->symTable.find(name) != st->symTable.end();
+            return currentScope->symTable.find(name) != currentScope->symTable.end();
         }
         SymbolTableEntry& lookup(string name, int lineNum) {
-            Scope* x = st;
+            Scope* x = currentScope;
             while (x != nullptr) {
                 if (x->symTable.find(name) != x->symTable.end())
                     return x->symTable[name];
@@ -199,24 +230,11 @@ class ScopingST {
             return nullptr;
         }
         int depth() {
-            return depth(st);
-        }
-        void printScope(Scope* s, int d) {
-            auto x = s;
-            for (int i = 0; i < x->symTable.size(); i++) {
-                auto m = x->symTable.data[i];
-                for (int i = 0; i < d; i++) cout<<"  ";
-                cout<<m.name<<": "<<m.addr<<", "<<m.depth<<endl;
-                if (m.type == 2) {
-                    printScope(constPool.get(m.constPoolIndex).objval->closure->func->scope,d + 1);
-                } else if (m.type == 3) {
-                    printScope(constPool.get(m.constPoolIndex).objval->object->scope, d+1);
-                }
-            }
+            return depth(currentScope);
         }
         void print() {
             cout<<"Symbol table: \n";
-            printScope(st, 1);
+            printST(currentScope, 1);
         }
 };
 

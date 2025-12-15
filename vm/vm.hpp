@@ -47,7 +47,7 @@ class VM {
             int func_id = inst.operand[0].intval;
             auto func = constPool.get(func_id).objval->closure->func;
             auto env = mostRecentAR(func_id);
-            opstk[++sp] = StackItem(new GCItem(new Closure(func, env)));
+            opstk[++sp] = StackItem(gc.alloc(new Closure(func, env)));
         }
         void openBlock(Instruction& inst) {
             callstk = new ActivationRecord(BLOCK_CPIDX, ip, inst.operand[1].intval, callstk, callstk);
@@ -80,7 +80,7 @@ class VM {
             for (auto m : master->fields) {
                 clone->fields[m.first] = StackItem();
             }
-            opstk[++sp] = new GCItem(clone); 
+            opstk[++sp] = gc.alloc(clone); 
         }
         void storeGlobal() {
             StackItem t = opstk[sp--];

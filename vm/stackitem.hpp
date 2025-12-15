@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <cmath>
 #include <deque>
+#include "alloc.hpp"
 #include "heapitem.hpp"
 using namespace std;
 
@@ -40,11 +41,11 @@ struct StackItem {
     StackItem(int value) { intval = value; type = INTEGER; }
     StackItem(double value) { numval = value; type = NUMBER; }
     StackItem(bool balue) { boolval = balue; type = BOOLEAN; }
-    StackItem(string value) { objval = new GCItem(new string(value)); type = OBJECT; }
-    StackItem(Function* f) { objval = new GCItem(f); type = OBJECT; }
-    StackItem(Closure* c) { objval = new GCItem(c); type = OBJECT; }
-    StackItem(deque<StackItem>* l) { objval = new GCItem(l); type = OBJECT; }
-    StackItem(ClassObject* o) { objval = new GCItem(o); type = OBJECT; }
+    StackItem(string value) { objval = gc.alloc(new string(value)); type = OBJECT; }
+    StackItem(Function* f) { objval = gc.alloc(f); type = OBJECT; }
+    StackItem(Closure* c) { objval = gc.alloc(c); type = OBJECT; }
+    StackItem(deque<StackItem>* l) { objval = gc.alloc(l); type = OBJECT; }
+    StackItem(ClassObject* o) { objval = gc.alloc(o); type = OBJECT; }
     StackItem(GCItem* i) { objval = i; type = OBJECT; }
     StackItem() { type = NIL; intval = -66; }
     StackItem(const StackItem& si) {
@@ -129,7 +130,7 @@ struct StackItem {
             for (char c : rhs.toString()) {
                 str.push_back(c);
             }
-            objval = new GCItem(new string(str));
+            objval = gc.alloc(new string(str));
             type = OBJECT;
         } else {
             double v = rhs.type == INTEGER ? rhs.intval:rhs.numval;

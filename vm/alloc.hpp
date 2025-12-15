@@ -112,5 +112,6 @@ class GCAllocator {
         }
 };
 
+GCAllocator gc;
 
 #endif
