@@ -393,6 +393,7 @@ class VM {
             callstk = globals;
         }
         ~VM() {
+            collector.run(callstk, constPool);
             delete callstk;
         }
         void setConstPool(ConstPool& cp) {
@@ -417,7 +418,6 @@ class VM {
                 }
                 if (verbosity > 0) cout<<"================"<<endl;
             }
-            collector.run(callstk, constPool);
         }
 };
 
