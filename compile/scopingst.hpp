@@ -177,7 +177,7 @@ class ScopingST {
                 ns->enclosing = currentScope;
                 ClassObject* obj = new ClassObject(name, ns);
                 objectDefs.insert(make_pair(name, obj));
-                int constIdx = constPool.insert(gc.alloc(obj));
+                int constIdx = constPool.insert(alloc.alloc(obj));
                 int envAddr = nextAddr();
                 objectDefs[name]->cpIdx = constIdx;
                 currentScope->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, CLASSVAR, depth(currentScope)+1));

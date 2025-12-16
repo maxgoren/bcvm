@@ -45,6 +45,9 @@ string closureToString(Closure* cl);
 string listToString(deque<StackItem>* list);
 string classToString(ClassObject* obj);
 
+void freeClosure(Closure* cl);
+void freeClass(ClassObject* obj);
+
 struct GCItem : GCObject {
     GCType type;
     union {

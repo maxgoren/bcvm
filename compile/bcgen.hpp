@@ -150,17 +150,17 @@ class  ByteCodeGenerator {
             cout<<"Emitting Field access for "<<n->left->token.getString()<<"."<<n->right->token.getString()<<endl;
             emitLoad(n->left, false);
             if (n->right->expr == ID_EXPR) {
-                int fieldname = symTable.getConstPool().insert(gc.alloc(new string(n->right->token.getString())));
+                int fieldname = symTable.getConstPool().insert(alloc.alloc(new string(n->right->token.getString())));
                 emit(Instruction(isLvalue ? stfield:ldfield, fieldname));
             } else {
                 auto t = n->right;
                 while (t->expr == FIELD_EXPR) {
-                    int fieldname = symTable.getConstPool().insert(gc.alloc(new string(t->left->token.getString())));
+                    int fieldname = symTable.getConstPool().insert(alloc.alloc(new string(t->left->token.getString())));
                     emit(Instruction(ldfield, fieldname));
                     if (t->right->expr == FIELD_EXPR) {
                         t = t->right;
                     } else {
-                        fieldname = symTable.getConstPool().insert(gc.alloc(new string(t->right->token.getString())));
+                        fieldname = symTable.getConstPool().insert(alloc.alloc(new string(t->right->token.getString())));
                         emit(Instruction(isLvalue ? stfield:ldfield, fieldname));
                         t = t->left;
                     }

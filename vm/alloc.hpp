@@ -24,7 +24,6 @@ class GCAllocator {
                 free_list.pop_back();
                 x->type = STRING;
                 x->strval = s;
-                cout<<"From free list"<<endl;
             } else {
                 x = new GCItem(s);
             }
@@ -36,17 +35,27 @@ class GCAllocator {
                 return;
             switch (item->type) {
                 case STRING: {
-                    cout<<"Free string: "<<item->toString()<<endl;
+                    //cout<<"Free string: "<<item->toString()<<endl;
                     delete item->strval;
                 } break;
                 case CLASS: {
-                 //   freeClassObject(item);
+                    //cout<<"Free class."<<endl;
+                    freeClass(item->object);
                 } break;
                 case LIST: {
-                   cout<<"Free list: "<<item->toString()<<endl;
+                   //cout<<"Free list: "<<item->toString()<<endl;
                    delete item->list;
                 } break;
+                case CLOSURE: {
+                    //cout<<"Free closure: "<<item->toString()<<endl;
+                    item->closure = nullptr;
+                } break;
+                case FUNCTION: {
+                    //cout<<"Free function: "<<item->toString()<<endl;
+                    delete item->func;
+                }
             };
+            item->type = NILPTR;
             free_list.push_back(item);
         }
         GCItem* alloc(Closure* c) {
@@ -56,7 +65,6 @@ class GCAllocator {
                 free_list.pop_back();
                 x->type = CLOSURE;
                 x->closure = c;
-                cout<<"From free list"<<endl;
             } else {
                 x = new GCItem(c);
             }
@@ -70,7 +78,6 @@ class GCAllocator {
                 free_list.pop_back();
                 x->type = FUNCTION;
                 x->func = f;
-                cout<<"From free list"<<endl;
             } else {
                 x = new GCItem(f);
             }
@@ -84,7 +91,6 @@ class GCAllocator {
                 free_list.pop_back();
                 x->type = LIST;
                 x->list = l;
-                cout<<"From free list"<<endl;
             } else {
                 x = new GCItem(l);
             }
@@ -98,7 +104,6 @@ class GCAllocator {
                 free_list.pop_back();
                 x->type = CLASS;
                 x->object = l;
-                cout<<"From free list"<<endl;
             } else {
                 x = new GCItem(l);
             }
@@ -113,6 +118,6 @@ class GCAllocator {
         }
 };
 
-GCAllocator gc;
+GCAllocator alloc;
 
 #endif

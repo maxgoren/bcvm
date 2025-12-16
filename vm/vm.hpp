@@ -47,10 +47,10 @@ class VM {
             int func_id = inst.operand[0].intval;
             auto func = constPool.get(func_id).objval->closure->func;
             auto env = mostRecentAR(func_id);
-            opstk[++sp] = StackItem(gc.alloc(new Closure(func, env)));
+            opstk[++sp] = StackItem(alloc.alloc(new Closure(func, env)));
         }
         void openBlock(Instruction& inst) {
-            callstk = new ActivationRecord(BLOCK_CPIDX, ip, inst.operand[1].intval, callstk, callstk);
+            callstk = new ActivationRecord(BLOCK_CPIDX, ip, callstk, callstk);
         }
         void closeBlock() {
             if (callstk != nullptr && callstk->control != nullptr) {
@@ -63,7 +63,7 @@ class VM {
             int numArgs = inst.operand[1].intval;
             int cpIdx = inst.operand[0].intval;
             Closure* close = opstk[sp--].objval->closure;
-            callstk = new ActivationRecord(cpIdx, ip, numArgs, callstk, close->env);
+            callstk = new ActivationRecord(cpIdx, ip, callstk, close->env);
             for (int i = numArgs; i > 0; i--) {
                 callstk->locals[i] = opstk[sp--];
             }
@@ -72,6 +72,9 @@ class VM {
         void retProcedure() {
             ip = callstk->ret_addr;
             closeBlock();
+            if (collector.ready()) {
+                collector.run(callstk, constPool);
+            }
         }
         void instantiate(Instruction& inst) {
             ClassObject* master = constPool.get(inst.operand[0].intval).objval->object;
@@ -80,7 +83,7 @@ class VM {
             for (auto m : master->fields) {
                 clone->fields[m.first] = StackItem();
             }
-            opstk[++sp] = gc.alloc(clone); 
+            opstk[++sp] = alloc.alloc(clone); 
         }
         void storeGlobal() {
             StackItem t = opstk[sp--];
@@ -126,7 +129,7 @@ class VM {
                         char c = top(1).objval->strval->at(top(0).numval);
                         string str;
                         str.push_back(c);
-                        top(1) = (gc.alloc(new string(str))); sp--; 
+                        top(1) = (alloc.alloc(new string(str))); sp--; 
                         return;
                 }
             }
@@ -386,7 +389,7 @@ class VM {
             sp = 0;
             fp = 0;
             haltSentinel = Instruction(halt);
-            globals =  new ActivationRecord(GLOBAL_SCOPE,0, 0, nullptr, nullptr);
+            globals =  new ActivationRecord(GLOBAL_SCOPE,0, nullptr, nullptr);
             callstk = globals;
         }
         ~VM() {

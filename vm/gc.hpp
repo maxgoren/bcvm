@@ -59,11 +59,8 @@ void markAR(ActivationRecord* ar) {
 }
 
 void freeAR(GCObject* to) {
-    static int arc = 0;
     if (to != nullptr) {
-        cout<<"Freeing ar: "<<arc<<endl;
         delete to;
-        arc++;
     }
 }
 
@@ -75,7 +72,7 @@ class GarbageCollector {
             GC_LIMIT = 50;
         }
         bool ready() {
-            return gc.getLiveList().size() == GC_LIMIT;
+            return alloc.getLiveList().size() == GC_LIMIT;
         }
         void mark(ActivationRecord* callstk, ConstPool& constPool) {
             cout<<"start mark phase"<<endl;
@@ -90,7 +87,7 @@ class GarbageCollector {
         void sweep() {
             unordered_set<GCObject*> nextGen;
             unordered_set<GCObject*> toFree;
-            for (auto it : gc.getLiveList()) {
+            for (auto it : alloc.getLiveList()) {
                 if (it->marked) {
                     nextGen.insert(it);
                 } else {
@@ -100,11 +97,11 @@ class GarbageCollector {
             cout<<"Collecting: "<<toFree.size()<<endl;
             for (auto & it : toFree) {
                 if (!it->isAR)
-                    gc.free((GCItem*)it);
+                    alloc.free((GCItem*)it);
                 else freeAR(it);
             }
-            cout<<gc.getLiveList().size()<<", "<<toFree.size()<<", "<<nextGen.size()<<endl;
-            gc.getLiveList().swap(nextGen);
+            cout<<alloc.getLiveList().size()<<", "<<toFree.size()<<", "<<nextGen.size()<<endl;
+            alloc.getLiveList().swap(nextGen);
             GC_LIMIT *= 2;
         }
         void run(ActivationRecord* callstk, ConstPool& constPool) {

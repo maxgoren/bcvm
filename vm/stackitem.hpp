@@ -41,11 +41,11 @@ struct StackItem {
     StackItem(int value) { intval = value; type = INTEGER; }
     StackItem(double value) { numval = value; type = NUMBER; }
     StackItem(bool balue) { boolval = balue; type = BOOLEAN; }
-    StackItem(string value) { objval = gc.alloc(new string(value)); type = OBJECT; }
-    StackItem(Function* f) { objval = gc.alloc(f); type = OBJECT; }
-    StackItem(Closure* c) { objval = gc.alloc(c); type = OBJECT; }
-    StackItem(deque<StackItem>* l) { objval = gc.alloc(l); type = OBJECT; }
-    StackItem(ClassObject* o) { objval = gc.alloc(o); type = OBJECT; }
+    StackItem(string value) { objval = alloc.alloc(new string(value)); type = OBJECT; }
+    StackItem(Function* f) { objval = alloc.alloc(f); type = OBJECT; }
+    StackItem(Closure* c) { objval = alloc.alloc(c); type = OBJECT; }
+    StackItem(deque<StackItem>* l) { objval = alloc.alloc(l); type = OBJECT; }
+    StackItem(ClassObject* o) { objval = alloc.alloc(o); type = OBJECT; }
     StackItem(GCItem* i) { objval = i; type = OBJECT; }
     StackItem() { type = NIL; intval = -66; }
     StackItem(const StackItem& si) {
@@ -130,7 +130,7 @@ struct StackItem {
             for (char c : rhs.toString()) {
                 str.push_back(c);
             }
-            objval = gc.alloc(new string(str));
+            objval = alloc.alloc(new string(str));
             type = OBJECT;
         } else {
             double v = rhs.type == INTEGER ? rhs.intval:rhs.numval;
@@ -235,6 +235,9 @@ struct ClassObject  {
 };
 
 string classToString(ClassObject* obj) {
+    if (obj == nullptr) {
+        return "nil";
+    }
     if (obj->instantiated) {
         string str = obj->name + "{ ";
         for (auto m : obj->fields) {
@@ -253,5 +256,12 @@ string listToString(deque<StackItem>* list) {
         }
         return str + "]";
 }
+
+void freeClass(ClassObject* obj) {
+    if (obj != nullptr) {
+        delete obj;
+    }
+}
+
 
 #endif
