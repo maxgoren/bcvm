@@ -1,0 +1,20 @@
+fn map(let xs, let f) {
+    let res := [];
+    let i := 0;
+    while (i < xs.size()) {
+        res.append(f(xs[i]));
+        i := i + 1;
+    }
+    return res;
+}
+fn filter(let xs, let f) {
+    let res := [];
+    let i := 0;
+    while (i < xs.size()) {
+        if (f(xs[i])) {
+            res.append(xs[i]);
+        }
+        i := i + 1;
+    }
+    return res;
+}

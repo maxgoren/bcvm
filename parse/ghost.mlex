@@ -5,7 +5,6 @@
 {"def", TK_FN}
 {"get", TK_GET}
 {"let", TK_LET}
-{"map", TK_MAP}
 {"new", TK_NEW}
 {"pop", TK_POP}
 {"var", TK_LET}
@@ -24,8 +23,6 @@
 {"public", TK_PUBLIC}
 {"random", TK_RANDOM}
 {"append", TK_APPEND}
-{"filter", TK_FILTER}
-{"reduce", TK_REDUCE}
 {"return", TK_RETURN}
 {"println", TK_PRINTLN}
 {"private", TK_PRIVATE}

@@ -36,7 +36,8 @@ class GCAllocator {
             switch (item->type) {
                 case STRING: {
                     //cout<<"Free string: "<<item->toString()<<endl;
-                    delete item->strval;
+                    if (item->strval)
+                        delete item->strval;
                 } break;
                 case CLASS: {
                     //cout<<"Free class."<<endl;
@@ -44,16 +45,18 @@ class GCAllocator {
                 } break;
                 case LIST: {
                    //cout<<"Free list: "<<item->toString()<<endl;
-                   delete item->list;
+                   if (item->list)
+                        delete item->list;
                 } break;
                 case CLOSURE: {
                     //cout<<"Free closure: "<<item->toString()<<endl;
-                    item->closure = nullptr;
+                    //delete item->closure->env;
+                    freeClosure(item->closure);
                 } break;
                 case FUNCTION: {
-                    //cout<<"Free function: "<<item->toString()<<endl;
-                    delete item->func;
-                }
+                    //On further consideration, this should actually _never_ happen.
+                    return;
+                } break;
             };
             item->type = NILPTR;
             free_list.push_back(item);

@@ -25,7 +25,11 @@ class GarbageCollector {
                             }
                         }
                     } else if (curr->type == CLOSURE && curr->closure != nullptr) {
-                        markAR(curr->closure->env);
+                        markAR(curr->closure->env, 1);
+                    } else if (curr->type == CLASS && curr->object != nullptr) {
+                        for (auto & it : curr->object->fields) {
+                            markItem(&it.second);
+                        }
                     }
                 }
             }
@@ -35,14 +39,18 @@ class GarbageCollector {
                 markObject(si->objval);
             }
         }
-        void markAR(ActivationRecord* callframe) {
+        void markAR(ActivationRecord* callframe, int d) {
             ActivationRecord* ar = callframe;
-            while (ar && !ar->marked) {
+            if (ar && !ar->marked) {
                 ar->marked = true;
+                for (int i = 0; i < d; i++) cout<<" ";
+                cout<<ar->cp_index<<endl;
                 for (int i = 0; i < 255; i++) {
                     markItem(&ar->locals[i]);
                 }
-                ar = ar->access;
+                markAR(ar->access, d + 1);
+                if (ar->control != ar->access)
+                    markAR(ar->control, d + 2);
             }
         }
         void freeAR(GCObject* to) {
@@ -53,20 +61,10 @@ class GarbageCollector {
         int GC_LIMIT;
     public:
         GarbageCollector() {
-            GC_LIMIT = 25;
+            GC_LIMIT = 255;
         }
         bool ready() {
-            return alloc.getLiveList().size() == GC_LIMIT;
-        }
-        void mark(ActivationRecord* callstk, ConstPool& constPool) {
-            cout<<"start mark phase"<<endl;
-            cout<<"Marking Callstack: "<<endl;
-            for (auto & it = callstk; it != nullptr; it = it->control) {
-                markAR(it);
-            }
-            cout<<"Checking const table: "<<endl;
-            constPool.cleanTable();
-            cout<<"Marking complete."<<endl;
+            return alloc.getLiveList().size() > GC_LIMIT;
         }
         void sweep() {
             unordered_set<GCObject*> nextGen;
@@ -88,8 +86,14 @@ class GarbageCollector {
             alloc.getLiveList().swap(nextGen);
             GC_LIMIT *= 2;
         }
-        void run(ActivationRecord* callstk, ConstPool& constPool) {
-            mark(callstk, constPool);
+        void run(ActivationRecord* callstk, ActivationRecord* globals, ConstPool& constPool) {
+            cout<<"start mark phase"<<endl;
+            cout<<"Marking Callstack: "<<endl;
+            markAR(callstk, 1);
+            markAR(globals, 1);
+            cout<<"Checking const table: "<<endl;
+            constPool.cleanTable();
+            cout<<"Marking complete."<<endl;
             sweep();
         }
 };

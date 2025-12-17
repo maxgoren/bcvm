@@ -11,7 +11,6 @@ static const int MAX_LOCAL = 255;
 struct ActivationRecord : GCObject {
     int cp_index;
     int ret_addr;
-    int refCount;
     StackItem locals[MAX_LOCAL];
     ActivationRecord* control;
     ActivationRecord* access;
@@ -20,15 +19,11 @@ struct ActivationRecord : GCObject {
         ret_addr = ra;
         control = calling;
         access = defining;
-        refCount = 1;
         isAR = true;
-        if (access) access->refCount += 1;
         alloc.getLiveList().insert(this);
     }
     ~ActivationRecord() {
-        if (access && --access->refCount == 0) {
-            delete access;
-        }
+        
     }
 };
 

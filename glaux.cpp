@@ -29,9 +29,18 @@ class Compiler {
         }
 };
 
+void initStdLib(Compiler& compiler, VM& vm) {
+    FileStringBuffer* fb = new FileStringBuffer();
+    fb->readFile("vm/stdlib.owl");
+    auto code = compiler.compile(fb);
+    vm.setConstPool(compiler.getConstPool());
+    vm.run(code, 1);
+}
+
 void compileAndRun(CharBuffer* buff, int verbosity) {
     VM vm;
     Compiler compiler;
+    initStdLib(compiler, vm);
     vector<Instruction> code = compiler.compile(buff);
     vm.setConstPool(compiler.getConstPool());
     vm.run(code, verbosity);
@@ -50,11 +59,16 @@ void runCommand(string cmd, int verbosity) {
     compileAndRun(sb, verbosity);
 }
 
+//check cluster status
+
+//use softwareupgradecontrollerit to test
+
 void repl(int vb) {
     bool looping = true;
     StringBuffer* sb = new StringBuffer();
     Compiler compiler;
     VM vm;
+    initStdLib(compiler, vm);
     while (looping) {
         string input;
         cout<<"Glaux> ";

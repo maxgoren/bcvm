@@ -156,6 +156,11 @@ class Parser {
                 match(TK_SIZE);
                 match(TK_LPAREN);
                 match(TK_RPAREN);
+            } else if (expect(TK_EMPTY)) {
+                n = new astnode(LIST_EXPR, current());
+                match(TK_EMPTY);
+                match(TK_LPAREN);
+                match(TK_RPAREN);
             } else if (expect(TK_NEW)) {
                 n = new astnode(BLESS_EXPR, current());
                 match(TK_NEW);

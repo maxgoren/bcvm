@@ -45,9 +45,15 @@ class VM {
         }
         void closeOver(Instruction& inst) {
             int func_id = inst.operand[0].intval;
-            auto func = constPool.get(func_id).objval->closure->func;
-            auto env = mostRecentAR(func_id);
-            opstk[++sp] = StackItem(alloc.alloc(new Closure(func, env)));
+            auto funcobj = constPool.get(func_id);
+            if (funcobj.type == OBJECT && funcobj.objval->type == CLOSURE) {
+                auto func = funcobj.objval->closure->func;
+                auto env = mostRecentAR(func_id);
+                opstk[++sp] = StackItem(alloc.alloc(new Closure(func, env)));
+            } else {
+                cout<<"ERROR: THAT AINT RIGHT"<<endl;
+                running = false;
+            }
         }
         void openBlock(Instruction& inst) {
             callstk = new ActivationRecord(BLOCK_CPIDX, ip, callstk, callstk);
@@ -62,19 +68,24 @@ class VM {
         void callProcedure(Instruction& inst) {
             int numArgs = inst.operand[1].intval;
             int cpIdx = inst.operand[0].intval;
-            Closure* close = opstk[sp--].objval->closure;
-            callstk = new ActivationRecord(cpIdx, ip, callstk, close->env);
-            for (int i = numArgs; i > 0; i--) {
-                callstk->locals[i] = opstk[sp--];
+            if (opstk[sp].type == OBJECT && opstk[sp].objval->type == CLOSURE) {
+                Closure* close = opstk[sp--].objval->closure;
+                callstk = new ActivationRecord(cpIdx, ip, callstk, close->env);
+                for (int i = numArgs; i > 0; i--) {
+                    callstk->locals[i] = opstk[sp--];
+                }
+                ip = close->func->start_ip;
+            } else {
+                cout <<"OH GOD OH GOD OH GOD"<<endl;
+                running = false;
             }
-            ip = close->func->start_ip;
         }
         void retProcedure() {
             ip = callstk->ret_addr;
             closeBlock();
-            if (collector.ready()) {
-                collector.run(callstk, constPool);
-            }
+            //if (collector.ready()) {
+            //    collector.run(callstk, globals, constPool);
+           // }
         }
         void instantiate(Instruction& inst) {
             ClassObject* master = constPool.get(inst.operand[0].intval).objval->object;
@@ -180,19 +191,18 @@ class VM {
             ip = inst.operand[0].intval;
         }
         void appendList() {
-            StackItem item = opstk[sp--];
-            if (top().type == OBJECT && top().objval->type == LIST)
-                top().objval->list->push_back(item);
+            if (top(1).type == OBJECT && top(1).objval->type == LIST)
+                top(1).objval->list->push_back(top(0));
+            sp--;
         }
         void pushList() {
-            StackItem item = opstk[sp--];
-            if (top().type == OBJECT && top().objval->type == LIST)
-                top().objval->list->push_front(item);
-            sp--;
+            if (top(1).type == OBJECT && top(1).objval->type == LIST)
+                top(1).objval->list->push_front(top(0));
+            sp-=2;
         }
         void listLength() {
             if (top().type == OBJECT && top().objval->type == LIST)
-                opstk[++sp] = ((double)opstk[sp--].objval->list->size());
+                top() = ((double)top().objval->list->size());
         }
         void makeRange() {
             double hi = opstk[sp--].numval;
@@ -393,7 +403,7 @@ class VM {
             callstk = globals;
         }
         ~VM() {
-            collector.run(callstk, constPool);
+            collector.run(callstk, globals, constPool);
             delete callstk;
         }
         void setConstPool(ConstPool& cp) {

@@ -5,16 +5,14 @@
 struct Closure : GCObject {
     Function* func;
     ActivationRecord* env;
-    Closure(Function* f, ActivationRecord* e) : func(f), env(e) { env->refCount += 1; }
+    Closure(Function* f, ActivationRecord* e) : func(f), env(e) { }
     Closure(Function* f) : func(f), env(nullptr) { }
     Closure(const Closure& c) {
         func = c.func;
         env = c.env;
     }
     ~Closure() {
-        if (env && --env->refCount == 0) {
-            delete env;
-        }
+       
     }
     Closure& operator=(const Closure& c) {
         if (this != &c) {

@@ -13,7 +13,7 @@ fn A(var k, var x1, var x2, var x3, var x4, var x5) {
     } 
     return B(); 
 } 
-let k := 5;
+let k := 1;
 while (k <= 14) {
     println k + ": " + A(k, delay(1), delay(-1), delay(-1), delay(1), delay(0)); 
     k++;

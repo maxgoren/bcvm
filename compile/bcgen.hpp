@@ -186,7 +186,13 @@ class  ByteCodeGenerator {
                 } break;
                 case TK_SIZE: {
                     genExpression(listname, false);
-                    emit(Instruction(list_len));
+                    emit(Instruction(list_len));  
+                } break;
+                case TK_EMPTY: {
+                    genExpression(listname, false);
+                    emit(Instruction(list_len));  
+                    emit(Instruction(ldconst, symTable.getConstPool().insert(0.0)));
+                    emit(Instruction(binop, VM_EQU));
                 } break;
             }
         }

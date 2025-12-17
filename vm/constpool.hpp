@@ -41,11 +41,12 @@ class ConstPool {
             return next;
         }
         void cleanTable() {
-            for (int i = 0; i < n; i++) {
+            for (int i = 0; i < maxN; i++) {
                 if (data[i].type == OBJECT && data[i].objval != nullptr) {
                     if (!data[i].objval->marked) {
                         freeList.push(i);
                         data[i].type = NIL;
+                        alloc.free(data[i].objval);
                     }
                 }
             }

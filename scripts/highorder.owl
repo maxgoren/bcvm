@@ -1,0 +1,6 @@
+let xs := [ 1 .. 10 ];
+let even := filter(xs, &(let i) -> i % 2 == 0);
+let doubleEvens := map(even, &(let k) -> k+k);
+println xs;
+println even;
+println doubleEvens;
