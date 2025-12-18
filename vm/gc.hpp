@@ -15,23 +15,20 @@ class GarbageCollector {
             if (curr != nullptr && curr->marked == false) {
                 curr->marked = true;
                 if (curr->type == LIST && curr->list != nullptr) {
-                    //cout<<"Marked List"<<endl;
                     //cout<<"L";
                     for (auto & it : *curr->list) {
                         markItem(&it);
                     }
                 } else if (curr->type == CLOSURE && curr->closure != nullptr) {
-                    //cout<<"Marked Closure."<<endl;
                     //cout<<"&";
-                    markAR(curr->closure->env, 1);
+                    markAR(curr->closure->env);
                 } else if (curr->type == CLASS && curr->object != nullptr && curr->object->instantiated) {
                     //cout<<"@";
-                    // cout<<"Marked Class"<<endl;
                     for (auto & it : curr->object->fields) {
                         markItem(&it.second);
                     }
                 } else if (curr->type == STRING && curr->strval != nullptr) {
-                    //cout<<"Marked string"<<endl;
+                    //cout<<"$"<<endl;
                 }
             }
         }
@@ -42,34 +39,19 @@ class GarbageCollector {
                 //cout<<".";
             }
         }
-        void markAR(ActivationRecord* callframe, int d) {
+        void markAR(ActivationRecord* callframe) {
             ActivationRecord* ar = callframe;
             //cout<<"#";
             if (ar != nullptr && !ar->marked) {
                 //cout<<"*: ";
                 ar->marked = true;
-                //for (int i = 0; i < d; i++) cout<<" ";
-                //cout<<"AR: "<<ar->cp_index<<endl;
+
                 for (int i = 0; i < 255; i++) {
                     markItem(&ar->locals[i]);
                 }
-                //cout<<endl;
-                markAR(ar->access, d + 2);
-                markAR(ar->control, d + 1);
+                markAR(ar->access);
+                markAR(ar->control);
             }
-        }
-        void freeAR(GCObject* to) {
-            if (to != nullptr) {
-                delete to;
-            }
-        }
-        int GC_LIMIT;
-    public:
-        GarbageCollector() {
-            GC_LIMIT = 512;
-        }
-        bool ready() {
-            return alloc.getLiveList().size() > GC_LIMIT;
         }
         void sweep() {
             unordered_set<GCObject*> nextGen;
@@ -95,22 +77,40 @@ class GarbageCollector {
             //cout<<alloc.getLiveList().size()<<", "<<toFree.size()<<", "<<nextGen.size()<<endl;
             alloc.getLiveList().swap(nextGen);
         }
-        void run(ActivationRecord* callstk, ActivationRecord* globals, StackItem opstk[], int sp, ConstPool* constPool) {
+        void markOpStack(StackItem ops[], int sp) {
             for (int i = sp; i >= 0; i--) {
-                markItem(&opstk[i]);
+                markItem(&ops[i]);
             }
             int i = 1;
-            markAR(callstk, i++);
-            markAR(globals, 1);
+        }
+        void markConstPool(ConstPool* constPool) {
             for (int i = 0; i < constPool->maxN; i++) {
-                if (constPool->data[i].type == OBJECT && constPool->data[i].objval->type == CLOSURE) {
+                if (constPool->data[i].type == OBJECT) { 
                     constPool->data[i].objval->marked = true;
-                    if (constPool->data[i].objval->closure->env != nullptr) {
-                        markAR(constPool->data[i].objval->closure->env, 1);
+                    if (constPool->data[i].objval->type == CLOSURE && constPool->data[i].objval->closure->env != nullptr) {
+                        markAR(constPool->data[i].objval->closure->env);
                     }
                 }
             }
-            //constPool->cleanTable();
+        }
+        void freeAR(GCObject* to) {
+            if (to != nullptr) {
+                delete to;
+            }
+        }
+        int GC_LIMIT;
+    public:
+        GarbageCollector() {
+            GC_LIMIT = 512;
+        }
+        bool ready() {
+            return alloc.getLiveList().size() > GC_LIMIT;
+        }
+        void run(ActivationRecord* callstk, ActivationRecord* globals, StackItem opstk[], int sp, ConstPool* constPool) {
+            markOpStack(opstk, sp);
+            markAR(callstk);
+            markAR(globals);
+            markConstPool(constPool);
             sweep();
             GC_LIMIT *= 2;
         }

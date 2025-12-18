@@ -59,10 +59,6 @@ void runCommand(string cmd, int verbosity) {
     compileAndRun(sb, verbosity);
 }
 
-//check cluster status
-
-//use softwareupgradecontrollerit to test
-
 void repl(int vb) {
     bool looping = true;
     StringBuffer* sb = new StringBuffer();

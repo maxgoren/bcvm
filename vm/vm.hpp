@@ -191,6 +191,7 @@ class VM {
             ip = inst.operand[0].intval;
         }
         void appendList() {
+            cout<<"And append: "<<top(0).toString()<<endl;
             if (top(1).type == OBJECT && top(1).objval->type == LIST)
                 top(1).objval->list->push_back(top(0));
             sp--;
