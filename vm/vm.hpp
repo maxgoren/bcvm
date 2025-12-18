@@ -83,9 +83,9 @@ class VM {
         void retProcedure() {
             ip = callstk->ret_addr;
             closeBlock();
-            //if (collector.ready()) {
-            //    collector.run(callstk, globals, constPool);
-           // }
+            if (collector.ready()) {
+                collector.run(callstk, globals, opstk, sp, &constPool);
+            }
         }
         void instantiate(Instruction& inst) {
             ClassObject* master = constPool.get(inst.operand[0].intval).objval->object;
@@ -403,7 +403,7 @@ class VM {
             callstk = globals;
         }
         ~VM() {
-            collector.run(callstk, globals, constPool);
+            collector.run(callstk, globals, opstk, sp, &constPool);
             delete callstk;
         }
         void setConstPool(ConstPool& cp) {

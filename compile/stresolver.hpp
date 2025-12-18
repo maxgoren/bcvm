@@ -31,22 +31,18 @@ class STBuilder {
                     symTable->closeScope();
                 } break;
                 case DEF_STMT: {
-                    cout<<"Open scope."<<endl;
                     symTable->openFunctionScope(t->token.getString(), -1);
                     for (auto it = t->left; it != nullptr; it = it->next) {
                         buildSymbolTable(it);
                     }
                     buildSymbolTable(t->right);
                     symTable->closeScope();
-                    cout<<"Close scope."<<endl;
                 }  break;
                 case BLOCK_STMT: {
-                    cout<<"Opening block"<<endl;
                     t->token.setString(nameBlock());
                     symTable->openFunctionScope(t->token.getString(), -1);
                     buildSymbolTable(t->left);
                     symTable->closeScope();
-                    cout<<"Close block."<<endl;
                 } break;
                 case LET_STMT: {
                     switch (t->left->expr) {
@@ -101,7 +97,7 @@ class STBuilder {
                         } else {
                             cout<<"A variable with the name "<<t->token.getString()<<" has already been declared in this scope."<<endl;
                         }
-                    } else if (symTable->lookup(t->token.getString(), t->token.lineNumber()).addr == -1) {    
+                    } else if (symTable->lookup(t->token.getString()).addr == -1) {    
                         cout<<"Error: Unknown variable name: "<<t->token.getString()<<endl;
                     } 
                 } break;
@@ -167,19 +163,17 @@ class ResolveLocals {
         ScopingST* st;
         vector<unordered_map<string, bool>> scopes;
         void openScope(string name) {
-            SymbolTableEntry sc_info = st->lookup(name, -1);
+            SymbolTableEntry sc_info = st->lookup(name);
             if (sc_info.type == CLASSVAR) {
                 st->openObjectScope(name);
             } else {
                 st->openFunctionScope(name, -1);
             }
             scopes.push_back(unordered_map<string,bool>());
-            cout<<"Open new scope"<<endl;
         }
         void closeScope() {
             scopes.pop_back();
             st->closeScope();
-            cout<<"Close scope."<<endl;
         }
         void declareName(string name) {
             if (scopes.empty())

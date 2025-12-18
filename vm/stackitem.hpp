@@ -42,7 +42,6 @@ struct StackItem {
     StackItem(double value) { numval = value; type = NUMBER; }
     StackItem(bool balue) { boolval = balue; type = BOOLEAN; }
     StackItem(string value) { objval = alloc.alloc(new string(value)); type = OBJECT; }
-    StackItem(Function* f) { objval = alloc.alloc(f); type = OBJECT; }
     StackItem(Closure* c) { objval = alloc.alloc(c); type = OBJECT; }
     StackItem(deque<StackItem>* l) { objval = alloc.alloc(l); type = OBJECT; }
     StackItem(ClassObject* o) { objval = alloc.alloc(o); type = OBJECT; }
@@ -249,18 +248,18 @@ string classToString(ClassObject* obj) {
     return obj->name;
 }
 
+void freeClass(ClassObject* obj) {
+    if (obj != nullptr) {
+        delete obj;
+    }
+}
+
 string listToString(deque<StackItem>* list) {
         string str = "[";
         for (auto m : *list) {
             str += m.toString() + " ";
         }
         return str + "]";
-}
-
-void freeClass(ClassObject* obj) {
-    if (obj != nullptr) {
-        delete obj;
-    }
 }
 
 

@@ -17,6 +17,31 @@ class GCAllocator {
         GCAllocator() {
 
         }
+        void free(GCItem* item) {
+            if (item == nullptr)
+                return;
+            switch (item->type) {
+                case STRING: {
+                    //cout<<"Free string: "<<item->toString()<<endl;
+                    if (item->strval)
+                        delete item->strval;
+                } break;
+                case LIST: {
+                   //cout<<"Free list: "<<item->toString()<<endl;
+                   if (item->list)
+                        delete item->list;
+                } break;
+                case CLOSURE: {
+                    freeClosure(item->closure);
+                } break;
+                    case CLASS: {
+                    //cout<<"Free class."<<endl;
+                    freeClass(item->object);
+                } break;
+            };
+            item->type = NILPTR;
+            free_list.push_back(item);
+        }
         GCItem* alloc(string* s) {
             GCItem* x;
             if (!free_list.empty()) {
@@ -30,37 +55,6 @@ class GCAllocator {
             live_items.insert(x);
             return x;
         }
-        void free(GCItem* item) {
-            if (item == nullptr)
-                return;
-            switch (item->type) {
-                case STRING: {
-                    //cout<<"Free string: "<<item->toString()<<endl;
-                    if (item->strval)
-                        delete item->strval;
-                } break;
-                case CLASS: {
-                    //cout<<"Free class."<<endl;
-                    freeClass(item->object);
-                } break;
-                case LIST: {
-                   //cout<<"Free list: "<<item->toString()<<endl;
-                   if (item->list)
-                        delete item->list;
-                } break;
-                case CLOSURE: {
-                    //cout<<"Free closure: "<<item->toString()<<endl;
-                    //delete item->closure->env;
-                    freeClosure(item->closure);
-                } break;
-                case FUNCTION: {
-                    //On further consideration, this should actually _never_ happen.
-                    return;
-                } break;
-            };
-            item->type = NILPTR;
-            free_list.push_back(item);
-        }
         GCItem* alloc(Closure* c) {
             GCItem* x;
             if (!free_list.empty()) {
@@ -70,19 +64,6 @@ class GCAllocator {
                 x->closure = c;
             } else {
                 x = new GCItem(c);
-            }
-            live_items.insert(x);
-            return x;
-        }
-        GCItem* alloc(Function* f) {
-            GCItem* x;
-            if (!free_list.empty()) {
-                x = free_list.back(); 
-                free_list.pop_back();
-                x->type = FUNCTION;
-                x->func = f;
-            } else {
-                x = new GCItem(f);
             }
             live_items.insert(x);
             return x;

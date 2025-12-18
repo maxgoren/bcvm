@@ -22,9 +22,6 @@ class  ByteCodeGenerator {
         int scopeLevel() {
             return symTable.depth();
         }
-        SymbolTableEntry& lookup(string varname, int ln) {
-            return symTable.lookup(varname, ln);
-        }
         void emit(Instruction inst) {
             if (cpos+1 == code.max_size()) {
                 code.push_back(inst);
@@ -109,7 +106,7 @@ class  ByteCodeGenerator {
         }
         void emitLoad(astnode* n, bool needLvalue) {
             if (noisey) cout<<"Compiling ID expression: ";
-            SymbolTableEntry item = lookup(n->token.getString(), n->token.lineNumber());
+            SymbolTableEntry item = symTable.lookup(n->token.getString());
             int depth = n->token.scopeLevel();
             if (needLvalue) {
                 emitLoadAddress(item, n);
@@ -127,7 +124,7 @@ class  ByteCodeGenerator {
             }
         }
         void emitStore(astnode* n) {
-            SymbolTableEntry item = symTable.lookup(n->left->token.getString(), 1);
+            SymbolTableEntry item = symTable.lookup(n->left->token.getString());
             int depth = n->left->token.scopeLevel();
             if (depth == GLOBAL_SCOPE) {
                 emit(Instruction(stglobal, item.addr));
@@ -263,7 +260,7 @@ class  ByteCodeGenerator {
         }
         void emitFunctionCall(astnode* n) {
             if (noisey) cout<<"Compiling Function Call."<<endl;
-            SymbolTableEntry fn_info = symTable.lookup(n->left->token.getString(), n->left->token.lineNumber());
+            SymbolTableEntry fn_info = symTable.lookup(n->left->token.getString());
             int argsCount = 0;
             for (auto x = n->right; x != nullptr; x = x->next)
                 argsCount++;
@@ -272,7 +269,7 @@ class  ByteCodeGenerator {
             emit(Instruction(call, fn_info.constPoolIndex, argsCount, n->left->token.scopeLevel()));
         }
         void emitListConstructor(astnode* n) {
-            emit(Instruction(ldconst, symTable.getConstPool().insert(new deque<StackItem>())));
+            emit(Instruction(ldconst, symTable.getConstPool().insert(alloc.alloc(new deque<StackItem>()))));
             if (n->left != nullptr) {
                 for (astnode* it = n->left; it != nullptr; it = it->next) {
                     genExpression(it, false);
@@ -326,7 +323,7 @@ class  ByteCodeGenerator {
         }
         void emitStoreFuncInEnvironment(astnode* n, bool isLambda) {
             string name = n->token.getString();
-            SymbolTableEntry fn_info = symTable.lookup(name, n->token.lineNumber());
+            SymbolTableEntry fn_info = symTable.lookup(name);
             emit(Instruction(mkclosure, fn_info.constPoolIndex, fn_info.depth));
             if (isLambda)
                 return;

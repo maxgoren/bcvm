@@ -81,8 +81,8 @@ class BlockScope {
         }
         void insert(string name, SymbolTableEntry st) {
             int idx = hash(name);
-            while (data[idx].type != NONE || idx == 0) {
-                if (data[idx].name == name) {
+            while (data[idx].type != NONE) {
+                if (idx != 0 && data[idx].name == name) {
                     break;
                 }
                 idx = (idx + 1) % MAX_LOCALS;
@@ -185,7 +185,6 @@ class ScopingST {
             }
         }
         void copyObjectScope(string instanceName, string objName) {
-            Scope* sc = objectDefs[objName]->scope;
             currentScope->symTable.insert(instanceName, SymbolTableEntry(instanceName, nextAddr(), objectDefs[objName]->cpIdx, CLASSVAR, depth(currentScope)+1));
         }
         void openFunctionScope(string name, int L1) {
@@ -196,8 +195,7 @@ class ScopingST {
             } else {
                 Scope*  ns = new Scope;
                 ns->enclosing = currentScope;
-                Function* f = makeFunction(name, L1, ns);
-                int constIdx = constPool.insert(new Closure(f));
+                int constIdx = constPool.insert(alloc.alloc(new Closure(new Function(name, L1, ns), nullptr)));
                 int envAddr = nextAddr();
                 currentScope->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, FUNCVAR, depth(currentScope)+1));
                 currentScope = ns;
@@ -214,7 +212,7 @@ class ScopingST {
         bool existsInScope(string name) {
             return currentScope->symTable.find(name) != currentScope->symTable.end();
         }
-        SymbolTableEntry& lookup(string name, int lineNum) {
+        SymbolTableEntry& lookup(string name) {
             Scope* x = currentScope;
             while (x != nullptr) {
                 if (x->symTable.find(name) != x->symTable.end())
