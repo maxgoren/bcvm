@@ -6,9 +6,7 @@
 #include "closure.hpp"
 using namespace std;
 
-// The cleanTable() method should only be called by the garbage collector. It is meant to be
-// called after the mark phase && right before the sweep phase thus turning this into a table 
-// of so-called "weak references". As such the items stored in this table are _not_ considered 
+// the items stored in this table are _not_ considered 
 // roots for the GC. If an object was not reached during the mark phase it should be reclaimed 
 // as garbage
 
@@ -40,23 +38,6 @@ class ConstPool {
             int next = n;
             n += 1;
             return next;
-        }
-        void cleanTable() {
-            for (int i = 0; i < maxN; i++) {
-                if (data[i].type == OBJECT && data[i].objval != nullptr) {
-                    if (!data[i].objval->marked) {
-                        if (data[i].objval->type == CLOSURE) {
-                            data[i].objval->marked = true;
-                            cout<<"MTBTTF"<<endl;
-                        } else {
-                            cout<<"Freeing "<<i<<" from constPool"<<endl;
-                            freeList.push(i);
-                            data[i].type = NIL;
-                            alloc.free(data[i].objval);
-                        }
-                    }
-                }
-            }
         }
     public:
         ConstPool() {

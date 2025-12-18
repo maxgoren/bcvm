@@ -34,7 +34,7 @@ void initStdLib(Compiler& compiler, VM& vm) {
     fb->readFile("vm/stdlib.owl");
     auto code = compiler.compile(fb);
     vm.setConstPool(compiler.getConstPool());
-    vm.run(code, 1);
+    vm.run(code, 0);
 }
 
 void compileAndRun(CharBuffer* buff, int verbosity) {

@@ -39,7 +39,7 @@ class VM {
                 if (x->cp_index == func_id) {
                     break;
                 }
-                x = x->control;
+                x = x->access;
             }
             return (x == nullptr) ? callstk:x;
         }
