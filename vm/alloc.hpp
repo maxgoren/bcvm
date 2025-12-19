@@ -12,10 +12,11 @@ class GCAllocator {
     private:
         friend class GarbageCollector;
         unordered_set<GCObject*> live_items;
+        GCObject* liveList;
         list<GCItem*> free_list;
     public:
         GCAllocator() {
-
+            liveList = nullptr;
         }
         void free(GCItem* item) {
             if (item == nullptr)

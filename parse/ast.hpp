@@ -13,13 +13,13 @@ enum NodeType {
 enum ExprType {
     CONST_EXPR, ID_EXPR, BIN_EXPR, UOP_EXPR, FUNC_EXPR, LAMBDA_EXPR,
     LISTCON_EXPR, SUBSCRIPT_EXPR, LIST_EXPR, BLESS_EXPR, FIELD_EXPR,
-    RANGE_EXPR
+    RANGE_EXPR, TERNARY_EXPR
 };
 
 string exprTypeStr[] = {
     "CONST_EXPR", "ID_EXPR", "BIN_EXPR", "UOP_EXPR", "FUNC_EXPR", "LAMBDA_EXPR",
     "LISTCON_EXPR", "SUBSCRIPT_EXPR", "LIST_EXPR", "BLESS_EXPR", "FIELD_EXPR",
-    "RANGE_EXPR"
+    "RANGE_EXPR", "TERNARY_EXPR"
 };
 
 
@@ -49,10 +49,8 @@ struct astnode {
     astnode() : token(Token(TK_EOI, "fin")), left(nullptr), right(nullptr), next(nullptr) { }
 };
 
-void preorder(astnode* node, int d, set<astnode*>& seen) {
+void preorder(astnode* node, int d) {
     if (node != nullptr) {
-        if (seen.find(node) == seen.end()) {
-            seen.insert(node);
             for (int i = 0; i < d; i++) cout<<" ";
             cout<<"[";
             switch (node->kind) {
@@ -60,12 +58,9 @@ void preorder(astnode* node, int d, set<astnode*>& seen) {
                 case STMTNODE: cout<<stmtTypeStr[node->stmt]; break;
             }
             cout<<"] "<<node->token.getString()<<endl;
-            preorder(node->left, d + 1, seen);
-            preorder(node->right, d + 1, seen);
-            preorder(node->next, d, seen);
-        } else {
-            cout<<"Cycle found in AST: "<<node->token.getString()<<endl;
-        }
+            preorder(node->left, d + 1);
+            preorder(node->right, d + 1);
+            preorder(node->next, d);
     }
 }
 

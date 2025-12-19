@@ -51,7 +51,7 @@ class VM {
                 auto env = mostRecentAR(func_id);
                 opstk[++sp] = StackItem(alloc.alloc(new Closure(func, env)));
             } else {
-                cout<<"ERROR: THAT AINT RIGHT"<<endl;
+                cout<<"Fatal Error: Invalid Environment."<<endl;
                 running = false;
             }
         }
@@ -62,30 +62,31 @@ class VM {
             if (callstk != nullptr && callstk->control != nullptr) {
                 callstk = callstk->control;
             }
-            if (verbLev > 1)
-                cout<<"Leaving scope."<<endl;
+            if (collector.ready()) {
+                collector.run(callstk, globals, opstk, sp, &constPool);
+            }
+            if (verbLev > 1) cout<<"Leaving scope."<<endl;
         }
         void callProcedure(Instruction& inst) {
             int numArgs = inst.operand[1].intval;
             int cpIdx = inst.operand[0].intval;
             if (opstk[sp].type == OBJECT && opstk[sp].objval->type == CLOSURE) {
                 Closure* close = opstk[sp--].objval->closure;
-                callstk = new ActivationRecord(cpIdx, ip, callstk, close->env);
-                for (int i = numArgs; i > 0; i--) {
-                    callstk->locals[i] = opstk[sp--];
+                if (close != nullptr) {
+                    callstk = new ActivationRecord(cpIdx, ip, callstk, close->env);
+                    for (int i = numArgs; i > 0; i--) {
+                        callstk->locals[i] = opstk[sp--];
+                    }
+                    ip = close->func->start_ip;
+                    return;
                 }
-                ip = close->func->start_ip;
-            } else {
-                cout <<"OH GOD OH GOD OH GOD"<<endl;
-                running = false;
             }
+            cout <<"Fatal error: attempted function application without a function."<<endl;
+            running = false;
         }
         void retProcedure() {
             ip = callstk->ret_addr;
             closeBlock();
-            if (collector.ready()) {
-                collector.run(callstk, globals, opstk, sp, &constPool);
-            }
         }
         void instantiate(Instruction& inst) {
             ClassObject* master = constPool.get(inst.operand[0].intval).objval->object;
@@ -191,7 +192,6 @@ class VM {
             ip = inst.operand[0].intval;
         }
         void appendList() {
-            cout<<"And append: "<<top(0).toString()<<endl;
             if (top(1).type == OBJECT && top(1).objval->type == LIST)
                 top(1).objval->list->push_back(top(0));
             sp--;
@@ -209,8 +209,8 @@ class VM {
             double hi = opstk[sp--].numval;
             double lo = opstk[sp--].numval;
             if (hi < lo) swap(hi, lo);
-            if (top(0).type != OBJECT || (top(0).objval->type != LIST)) {
-                cout<<"Error: ranges need lists, yo."<<endl;
+            if (top(0).type != OBJECT && (top(0).objval->type != LIST)) {
+                cout<<"Error: ranges require a list context."<<endl;
                 return;
             }
             cout<<"Creating set of integers from "<<lo<<" to "<<hi<<endl;

@@ -22,13 +22,10 @@ class Parser {
             return lookahead() == TK_EOI;
         }
         bool expect(TKSymbol symbol) {
-            //cout<<"Lookahead: "<<current().getSymbol()<<endl;
-            //cout<<"Expecting: "<<symbol<<endl;
             return symbol == lookahead();
         }
         bool match(TKSymbol symbol) {
             if (expect(symbol)) {
-                //cout<<"\n----------------\nMatched "<<current().getString()<<"\n-------------------"<<endl;
                 advance();
                 return true;
             }
@@ -42,7 +39,6 @@ class Parser {
             return tokens[tpos].getSymbol();
         }
         astnode* argsList() {
-            //cout<<"args list"<<endl;
             astnode d, *t = &d;
             while (!expect(TK_RPAREN) && !expect(TK_RB)) {
                 if (expect(TK_COMMA))
@@ -53,7 +49,6 @@ class Parser {
             return d.next;
         }
         astnode* paramList() {
-            //cout<<"param list"<<endl;
             astnode d, *t = &d;
             while (!expect(TK_RPAREN)) {
                 if (expect(TK_COMMA))
@@ -96,7 +91,6 @@ class Parser {
             return n;
         }
         astnode* primary() {
-            //cout<<"primary expr"<<endl;
             astnode* n = nullptr;
             if (expect(TK_NUM)) {
                 n = new astnode(CONST_EXPR, current());
@@ -123,17 +117,7 @@ class Parser {
             } else if (expect(TK_LAMBDA)) {
                 n = new astnode(LAMBDA_EXPR, current());
                 match(TK_LAMBDA);
-                match(TK_LPAREN);
-                n->left = paramList();
-                match(TK_RPAREN);
-                if (expect(TK_LCURLY)) {
-                    match(TK_LCURLY);
-                    n->right = stmt_list();
-                    match(TK_RCURLY);
-                } else if (expect(TK_PRODUCE)) {
-                    match(TK_PRODUCE);
-                    n->right = expression();
-                }
+                n = functionBody(n);
             } else if (expect(TK_LB)) {
                 n = new astnode(LISTCON_EXPR, current());
                 match(TK_LB);
@@ -184,7 +168,6 @@ class Parser {
             return n;
         }
         astnode* unary() {
-            //cout<<"unary expr"<<endl;
             astnode* n = nullptr;
             if (expect(TK_SUB) || expect(TK_NOT)) {
                 n = new astnode(UOP_EXPR, current());
@@ -209,7 +192,6 @@ class Parser {
             return n;
         }
         astnode* factor() {
-            //cout<<"factor"<<endl;
             astnode* n = unary();
             while (expect(TK_MUL) || expect(TK_DIV) || expect(TK_MOD)) {
                 astnode* q = new astnode(BIN_EXPR, current());
@@ -221,7 +203,6 @@ class Parser {
             return n;
         }
         astnode* term() {
-           // cout<<"term"<<endl;
             astnode* n = factor();
             while (expect(TK_ADD) || expect(TK_SUB)) {
                 astnode* q = new astnode(BIN_EXPR, current());
@@ -233,7 +214,6 @@ class Parser {
             return n;
         }
         astnode* relopExpr() {
-         //   cout<<"relop expr"<<endl;
             astnode* n = term();
             while (expect(TK_LT) || expect(TK_GT) || expect(TK_LTE) || expect(TK_GTE)) {
                 astnode* q = new astnode(BIN_EXPR, current());
@@ -245,7 +225,6 @@ class Parser {
             return n;
         }
         astnode* compExpr() {
-         //   cout<<"comp expr"<<endl; 
             astnode* n = relopExpr();
             while (expect(TK_EQU) || expect(TK_NEQ)) {
                 astnode* q = new astnode(BIN_EXPR, current());
@@ -268,107 +247,131 @@ class Parser {
             return n;
         }
         astnode* expression() {
-       //     cout<<"expr"<<endl;
             astnode* n = logicalExpr();
-            while (expect(TK_ASSIGN)) {
+            while (expect(TK_ASSIGN) || expect(TK_ASSIGN_DIFF) || expect(TK_ASSIGN_SUM)) {
                 astnode* q = new astnode(BIN_EXPR, current());
-                match(TK_ASSIGN);
+                match(lookahead());
                 q->left = n;
                 q->right = logicalExpr();
                 n = q;
             }
             return n;
         }
+        astnode* functionBody(astnode* n) {
+            match(TK_LPAREN);
+            n->left = paramList();
+            match(TK_RPAREN);
+            if (expect(TK_LCURLY)) {
+                match(TK_LCURLY);
+                n->right = stmt_list();
+                match(TK_RCURLY);
+            } else if (expect(TK_PRODUCE)) {
+                match(TK_PRODUCE);
+                n->right = expression();
+            }
+            return n;
+        }
+        astnode* parseIfStmt() {
+            astnode* n = new astnode(IF_STMT, current());
+            match(TK_IF);
+            match(TK_LPAREN);
+            n->left = expression();
+            match(TK_RPAREN);
+            match(TK_LCURLY);
+            n->right = stmt_list();
+            match(TK_RCURLY);
+            if (expect(TK_ELSE)) {
+                astnode* e = new astnode(ELSE_STMT, current());
+                match(TK_ELSE);
+                match(TK_LCURLY);
+                e->right = stmt_list();
+                e->left = n->right;
+                n->right = e;
+                match(TK_RCURLY);
+            }
+            return n;
+        }
+        astnode* parseWhileStmt() {
+            astnode* n = new astnode(WHILE_STMT, current());
+            match(TK_WHILE);
+            match(TK_LPAREN);
+            n->left = expression();
+            match(TK_RPAREN);
+            match(TK_LCURLY);
+            n->right = stmt_list();
+            match(TK_RCURLY);
+            return n;
+        }
+        astnode* parseVarDec() {
+            astnode* n = new astnode(LET_STMT, current());
+            match(TK_LET);
+            astnode* t = new astnode(ID_EXPR, current());
+            match(TK_ID);
+            if (expect(TK_COLON)) {
+                match(TK_COLON);
+                n->right = new astnode(ID_EXPR, current());
+                match (TK_ID);
+            }
+            if (expect(TK_ASSIGN)) {
+                astnode* r = new astnode(BIN_EXPR, current());
+                match(TK_ASSIGN);
+                r->left = t;
+                r->right = expression();
+                t = r;
+            }
+            n->left = t;
+            return n;
+        }
+        astnode* parseSequence() {
+            match(TK_LCURLY);
+            astnode* t = stmt_list();
+            match(TK_RCURLY);
+            return t;
+        }
+        astnode* parseBlock() {
+            astnode* n = new astnode(BLOCK_STMT, current());
+            n->left = parseSequence();
+            return n;
+        }
+        astnode* parseFuncDef() {
+            astnode* n = new astnode(DEF_STMT, current());
+            match(TK_FN);
+            n->token = current();
+            match(TK_ID);
+            n = functionBody(n);
+            return n;
+        }
+        astnode* parseClassDef() {
+            astnode* n = new astnode(DEF_CLASS_STMT, current());
+            match(TK_CLASS);
+            n->left = expression();
+            n->right = parseSequence();
+            return n;
+        }
+        astnode* parsePrintStmt() {
+            astnode* n = new astnode(PRINT_STMT, current());
+            match(lookahead());
+            n->left = expression();
+            return n;
+        }
+        astnode* parseReturn() {
+            astnode* n = new astnode(RETURN_STMT, current());
+            match(TK_RETURN);
+            n->left = expression();
+            return n;
+        }
         astnode* statement() {
-         //   cout<<"statement"<<endl;
             astnode* n = nullptr;
             switch (lookahead()) {
                 case TK_PRINT:
-                case TK_PRINTLN: {
-                    n = new astnode(PRINT_STMT, current());
-                    match(lookahead());
-                    n->left = expression();
-                } break;
-                case TK_CLASS: {
-                    n = new astnode(DEF_CLASS_STMT, current());
-                    match(TK_CLASS);
-                    n->left = expression();
-                    match(TK_LCURLY);
-                    n->right = stmt_list();
-                    match(TK_RCURLY);
-                } break;
-                case TK_IF: {
-                    n = new astnode(IF_STMT, current());
-                    match(TK_IF);
-                    match(TK_LPAREN);
-                    n->left = expression();
-                    match(TK_RPAREN);
-                    match(TK_LCURLY);
-                    n->right = stmt_list();
-                    match(TK_RCURLY);
-                    if (expect(TK_ELSE)) {
-                        astnode* e = new astnode(ELSE_STMT, current());
-                        match(TK_ELSE);
-                        match(TK_LCURLY);
-                        e->right = stmt_list();
-                        e->left = n->right;
-                        n->right = e;
-                        match(TK_RCURLY);
-                    }
-                } break;
-                case TK_WHILE: {
-                    n = new astnode(WHILE_STMT, current());
-                    match(TK_WHILE);
-                    match(TK_LPAREN);
-                    n->left = expression();
-                    match(TK_RPAREN);
-                    match(TK_LCURLY);
-                    n->right = stmt_list();
-                    match(TK_RCURLY);
-                } break;
-                case TK_FN: {
-                    n = new astnode(DEF_STMT, current());
-                    match(TK_FN);
-                    n->token = current();
-                    match(TK_ID);
-                    match(TK_LPAREN);
-                    if (!expect(TK_RPAREN))
-                        n->left = paramList();
-                    match(TK_RPAREN);
-                    match(TK_LCURLY);
-                    n->right = stmt_list();
-                    match(TK_RCURLY);
-                } break;
-                case TK_LCURLY: {
-                    n = new astnode(BLOCK_STMT, current());
-                    match(TK_LCURLY);
-                    n->left = stmt_list();
-                    match(TK_RCURLY);
-                } break;
-                case TK_LET: {
-                    n = new astnode(LET_STMT, current());
-                    match(TK_LET);
-                    astnode* t = new astnode(ID_EXPR, current());
-                    match(TK_ID);
-                    if (expect(TK_COLON)) {
-                        match(TK_COLON);
-                        n->right = new astnode(ID_EXPR, current());
-                        match (TK_ID);
-                    }
-                    if (expect(TK_ASSIGN)) {
-                        astnode* r = new astnode(BIN_EXPR, current());
-                        match(TK_ASSIGN);
-                        r->left = t;
-                        r->right = expression();
-                        t = r;
-                    }
-                    n->left = t;
-                } break;
-                case TK_RETURN: {
-                    n = new astnode(RETURN_STMT, current());
-                    match(TK_RETURN);
-                    n->left = expression();
-                } break;
+                case TK_PRINTLN:  n = parsePrintStmt(); break;
+                case TK_CLASS:    n = parseClassDef();break;
+                case TK_IF:       n = parseIfStmt(); break;
+                case TK_WHILE:    n = parseWhileStmt();break;
+                case TK_FN:       n = parseFuncDef(); break;
+                case TK_LET:      n = parseVarDec(); break;
+                case TK_LCURLY:   n = parseBlock(); break;
+                case TK_RETURN:   n = parseReturn(); break;
                 default:
                     n = new astnode(EXPR_STMT, current());
                     n->left = expression();
@@ -378,7 +381,6 @@ class Parser {
             return n;
         }
         astnode* stmt_list() {
-         //   cout<<"stmt list"<<endl;
             astnode* x = statement();
             astnode* m = x;
             while (!expect(TK_EOI) && !expect(TK_RCURLY)) {
@@ -399,9 +401,7 @@ class Parser {
         astnode* parse(vector<Token> tokens) {
             init(tokens);
             astnode* p = stmt_list();
-            cout<<"Parse complete."<<endl;
-            set<astnode*> seen;
-            preorder(p, 1, seen);
+            preorder(p, 1);
             return p;
         }
 }; 

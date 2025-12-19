@@ -1,0 +1,19 @@
+def check(let x) {
+    if (x % 3 == 0) {
+        print "Fizz";
+    } 
+    if (x % 5 == 0) {
+        print "Buzz ";
+    } else {
+        if (x % 3 != 0) {
+            print x + " ";
+        }
+    }
+}
+
+let i := 1;
+while (i <= 15) {
+    check(i);
+    i++;
+}
+println " ";

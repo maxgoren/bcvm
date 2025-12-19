@@ -4,4 +4,4 @@ fn fib(let k) {
 	}
 	return fib(k-1)+fib(k-2);
 }
-println fib(6);
+println fib(30);

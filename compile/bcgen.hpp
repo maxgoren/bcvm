@@ -44,22 +44,23 @@ class  ByteCodeGenerator {
         }
         void emitBinaryOperator(astnode* n) {
             if (n->token.getSymbol() == TK_ASSIGN) {
-                if (noisey) {
-                    cout<<"Compiling Assignment: "<<endl;
-                    cout<<"Step one: stack value (from right)"<<endl;
-                }
+                
                 genCode(n->right, false);
                 if (n->left->token.getSymbol() == TK_LB) {
-                    if (noisey) cout<<"Step two: handle list access."<<endl;
                     emitListAccess(n->left, true);
                 } else if (n->left->token.getSymbol() == TK_PERIOD) {
                     emitFieldAccess(n->left, true);
                 } else {
-                    if (noisey) cout<<"Step two: stack address of var name (from left)"<<endl;
                     emitLoad(n->left, true);
                     if (noisey) cout<<"Step three: emit appropriate store instructioin"<<endl;
                     emitStore(n);
                 }
+            } else if (n->token.getSymbol() == TK_ASSIGN_SUM || n->token.getSymbol() == TK_ASSIGN_DIFF) {
+                genCode(n->left, false);
+                genCode(n->right, false);
+                emit(Instruction(binop, n->token.getSymbol() == TK_ASSIGN_DIFF ? VM_SUB:VM_ADD));
+                genCode(n->left, true);
+                emitStore(n);
             } else {
                 if (noisey) cout<<"Compiling BinOp: "<<n->token.getString()<<endl;
                 genCode(n->left,  false);
@@ -271,9 +272,14 @@ class  ByteCodeGenerator {
         void emitListConstructor(astnode* n) {
             emit(Instruction(ldconst, symTable.getConstPool().insert(alloc.alloc(new deque<StackItem>()))));
             if (n->left != nullptr) {
-                for (astnode* it = n->left; it != nullptr; it = it->next) {
-                    genExpression(it, false);
-                    emit(Instruction(list_append));
+                if (n->left->expr == RANGE_EXPR) {
+                    genExpression(n->left, false);
+                    emit(Instruction(popstack));
+                } else {
+                    for (astnode* it = n->left; it != nullptr; it = it->next) {
+                        genExpression(it, false);
+                        emit(Instruction(list_append));
+                    }
                 }
             }
         }

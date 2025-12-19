@@ -39,6 +39,7 @@
 {"%", TK_MOD}
 {"!", TK_NOT}
 {":", TK_COLON}
+{"[?]", TK_QM}
 {":=", TK_ASSIGN}
 {"\+=", TK_ASSIGN_SUM}
 {"-=", TK_ASSIGN_DIFF}

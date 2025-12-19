@@ -106,6 +106,7 @@ class GarbageCollector {
         bool ready() {
             return alloc.getLiveList().size() > GC_LIMIT;
         }
+
         void run(ActivationRecord* callstk, ActivationRecord* globals, StackItem opstk[], int sp, ConstPool* constPool) {
             markOpStack(opstk, sp);
             markAR(callstk);
