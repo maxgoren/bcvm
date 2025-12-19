@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <stack>
-#include "parser.hpp"
+#include "re_parser.hpp"
 using namespace std;
 
 template <class T>
@@ -167,10 +167,10 @@ NFA makeZeorOrOne(NFA a) {
 
 
 
-class Compiler {
+class RECompiler {
     private:
         Stack<NFA> st;
-        void trav(astnode* node) {
+        void trav(re_ast* node) {
             if (node != nullptr) {
                 if (node->type == LITERAL) {
                     cout<<"Making Character State: "<<node->c<<endl;
@@ -216,20 +216,20 @@ class Compiler {
             }
         }
     public:
-        Compiler() {
+        RECompiler() {
 
         }
-        NFA compile(astnode* node) {
+        NFA compile(re_ast* node) {
             trav(node);
             return st.pop();
         }
 };
 
 NFA compile(string pattern) {
-    Parser parser;
-    astnode* ast = parser.parse(pattern);
-    print(ast, 1);
-    Compiler compiler;
+    REParser parser;
+    re_ast* ast = parser.parse(pattern);
+    preorder(ast, 1);
+    RECompiler compiler;
     return compiler.compile(ast);
 }
 

@@ -79,6 +79,7 @@ class  ByteCodeGenerator {
                     case TK_NEQ:  emit(Instruction(binop, VM_NEQ)); break;
                     case TK_LOGIC_AND:  emit(Instruction(binop, VM_LOGIC_AND)); break;
                     case TK_LOGIC_OR:   emit(Instruction(binop, VM_LOGIC_OR)); break;
+                    case TK_MATCHRE:    emit(Instruction(binop, VM_REGEX)); break;
                 }
             }
         }

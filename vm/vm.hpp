@@ -1,5 +1,6 @@
 #ifndef vm_hpp
 #define vm_hpp
+#include "regex/subset_match.hpp"
 #include "gc.hpp"
 using namespace std;
 
@@ -271,6 +272,9 @@ class VM {
                 } break;
                 case VM_LOGIC_OR: {
                     top(1).boolval = (top(1).boolval || top(0).boolval);
+                } break;
+                case VM_REGEX: {
+                    top(1).boolval = (matchRegex(top(0).toString(), top(1).toString()));
                 } break;
             }
             top(1).type = BOOLEAN;

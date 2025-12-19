@@ -75,7 +75,7 @@ struct StackItem {
                     case INTEGER: return intval < si.intval;
                     case NUMBER: return  numval < si.intval;
                     case BOOLEAN: return boolval < si.intval;
-                    case OBJECT: return 1;
+                    case OBJECT: return false;
                 }
             } break;
             case BOOLEAN: {
@@ -83,7 +83,7 @@ struct StackItem {
                     case INTEGER: return intval < si.boolval;
                     case NUMBER: return  numval < si.boolval;
                     case BOOLEAN: return boolval < si.boolval;
-                    case OBJECT: 1;
+                    case OBJECT: false;
                 }
             } break;
             case NUMBER: {
@@ -91,7 +91,7 @@ struct StackItem {
                     case INTEGER: return intval < si.numval;
                     case NUMBER:  return  numval < si.numval;
                     case BOOLEAN: return boolval < si.numval;
-                    case OBJECT: 1;
+                    case OBJECT: false;
                 }
             } break;
             case OBJECT: {

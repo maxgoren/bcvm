@@ -226,7 +226,7 @@ class Parser {
         }
         astnode* compExpr() {
             astnode* n = relopExpr();
-            while (expect(TK_EQU) || expect(TK_NEQ)) {
+            while (expect(TK_EQU) || expect(TK_NEQ) || expect(TK_MATCHRE)) {
                 astnode* q = new astnode(BIN_EXPR, current());
                 match(lookahead());
                 q->left = n;

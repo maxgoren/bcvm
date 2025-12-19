@@ -1,7 +1,7 @@
 #ifndef subset_match_hpp
 #define subset_match_hpp
 #include <iostream>
-#include "compiler.hpp"
+#include "re_compiler.hpp"
 #include <set>
 using namespace std;
 
@@ -45,7 +45,7 @@ set<NFAState*> e_closure(set<NFAState*> states) {
     return next;
 }
 
-bool match(NFA& nfa, string text) {
+bool recognizeString(NFA& nfa, string text) {
     set<NFAState*> states = {nfa.start};
     states = e_closure(states);
     int i = 0;
@@ -66,6 +66,11 @@ bool match(NFA& nfa, string text) {
         }
     }
     return states.find(nfa.accept) != states.end();
+}
+
+bool matchRegex(string pattern, string text) {
+    NFA nfa = compile(pattern);
+    return recognizeString(nfa, text);
 }
 
 #endif
