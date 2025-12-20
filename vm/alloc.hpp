@@ -2,7 +2,6 @@
 #define alloc_hpp
 #include <iostream>
 #include <unordered_set>
-#include <list>
 #include <deque>
 #include "heapitem.hpp"
 using namespace std;
@@ -12,23 +11,30 @@ class GCAllocator {
     private:
         friend class GarbageCollector;
         unordered_set<GCObject*> live_items;
-        GCObject* liveList;
-        list<GCItem*> free_list;
+        deque<GCItem*> free_list;
+        GCItem* next() {
+            if (free_list.empty()) {
+                return new GCItem();
+            }
+            GCItem* x = free_list.front(); 
+            free_list.pop_front();
+            x->marked = false;
+            x->isAR = false;
+            return x;
+        }
     public:
         GCAllocator() {
-            liveList = nullptr;
+
         }
         void free(GCItem* item) {
             if (item == nullptr)
                 return;
             switch (item->type) {
                 case STRING: {
-                    //cout<<"Free string: "<<item->toString()<<endl;
                     if (item->strval)
                         delete item->strval;
                 } break;
                 case LIST: {
-                   //cout<<"Free list: "<<item->toString()<<endl;
                    if (item->list)
                         delete item->list;
                 } break;
@@ -36,7 +42,6 @@ class GCAllocator {
                     freeClosure(item->closure);
                 } break;
                     case CLASS: {
-                    //cout<<"Free class."<<endl;
                     freeClass(item->object);
                 } break;
             };
@@ -44,62 +49,35 @@ class GCAllocator {
             free_list.push_back(item);
         }
         GCItem* alloc(string* s) {
-            GCItem* x;
-            if (!free_list.empty()) {
-                x = free_list.back(); 
-                free_list.pop_back();
-                x->type = STRING;
-                x->strval = s;
-            } else {
-                x = new GCItem(s);
-            }
+            GCItem* x = next();
+            x->type = STRING;
+            x->strval = s;
             live_items.insert(x);
             return x;
         }
         GCItem* alloc(Closure* c) {
-            GCItem* x;
-            if (!free_list.empty()) {
-                x = free_list.back(); 
-                free_list.pop_back();
-                x->type = CLOSURE;
-                x->closure = c;
-            } else {
-                x = new GCItem(c);
-            }
+            GCItem* x = next();
+            x->type = CLOSURE;
+            x->closure = c;
             live_items.insert(x);
             return x;
         }
         GCItem* alloc(deque<StackItem>* l) {
-            GCItem* x;
-            if (!free_list.empty()) {
-                x = free_list.back(); 
-                free_list.pop_back();
-                x->type = LIST;
-                x->list = l;
-            } else {
-                x = new GCItem(l);
-            }
+            GCItem* x = next();
+            x->type = LIST;
+            x->list = l;
             live_items.insert(x);
             return x;
         }
         GCItem* alloc(ClassObject* l) {
-            GCItem* x;
-            if (!free_list.empty()) {
-                x = free_list.back(); 
-                free_list.pop_back();
-                x->type = CLASS;
-                x->object = l;
-            } else {
-                x = new GCItem(l);
-            }
+            GCItem* x = next();
+            x->type = CLASS;
+            x->object = l;
             live_items.insert(x);
             return x;
         }
         unordered_set<GCObject*>& getLiveList() {
             return live_items;
-        }
-        list<GCItem*> getFreeList() {
-            return free_list;
         }
 };
 

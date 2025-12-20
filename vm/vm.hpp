@@ -4,7 +4,8 @@
 #include "gc.hpp"
 using namespace std;
 
-const int BLOCK_CPIDX = -420;
+static const int BLOCK_CPIDX = -420;
+static const int MAX_OP_STACK = 2255;
 
 class VM {
     private:
@@ -178,7 +179,7 @@ class VM {
             opstk[++sp] = (inst.operand[0]); 
         }
         void randNumber(Instruction& inst) {
-            opstk[++sp] = fmod(rand(), constPool.get(inst.operand[0].intval).numval); 
+            opstk[++sp] = fmod(rand(), inst.operand[0].numval); 
         }
         void branchOnFalse(Instruction& inst) {
             bool tmp = opstk[sp--].boolval;
@@ -406,7 +407,6 @@ class VM {
             callstk = globals;
         }
         ~VM() {
-            collector.run(callstk, globals, opstk, sp, &constPool);
             delete callstk;
         }
         void setConstPool(ConstPool& cp) {
@@ -416,6 +416,11 @@ class VM {
             init(cp, verbosity);
             running = true;
             while (running) {
+                if (sp >= MAX_OP_STACK) {
+                    cout<<"Error: Out of stack space, yo."<<endl;
+                    running = false;
+                    break;
+                }
                 Instruction inst = fetch();
                 if (verbosity > 0) {
                     printInstruction(inst);
@@ -431,6 +436,7 @@ class VM {
                 }
                 if (verbosity > 0) cout<<"================"<<endl;
             }
+            collector.run(callstk, globals, opstk, sp, &constPool);
         }
 };
 

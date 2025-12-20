@@ -33,10 +33,6 @@ struct Function {
     }
 };
 
-Function* makeFunction(string name, int start, Scope* s) {
-    return new Function(name, start, s); 
-}
-
 struct StackItem;
 struct ClassObject;
 struct Closure;

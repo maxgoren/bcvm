@@ -50,18 +50,14 @@ class GarbageCollector {
                 if (it->marked) {
                     it->marked = false;
                     nextGen.insert(it);
-                    ltn++;
                 } else {
                     if (it->isAR) {
                         freeAR((ActivationRecord*)it);
-                        far++;
                     } else {
                         alloc.free((GCItem*)it);
-                        fri++;
                     }
                 }
             }
-            cout<<"ARs: "<<far<<", Heap Items: "<<fri<<", Lives on: "<<ltn<<endl;
             alloc.getLiveList().swap(nextGen);
         }
         void markOpStack(StackItem ops[], int sp) {
@@ -80,23 +76,22 @@ class GarbageCollector {
                 }
             }
         }
-        int GC_LIMIT;
+        unsigned int GC_LIMIT;
     public:
         GarbageCollector() {
             GC_LIMIT = 512 * sizeof(ActivationRecord);
         }
         bool ready() {
-            return (alloc.getLiveList().size() * sizeof(ActivationRecord)) > GC_LIMIT;
+            return false;//(alloc.getLiveList().size() * sizeof(ActivationRecord)) > GC_LIMIT;
         }
         void run(ActivationRecord* callstk, ActivationRecord* globals, StackItem opstk[], int sp, ConstPool* constPool) {
-            cout<<"Mark ";
             markOpStack(opstk, sp);
             markAR(callstk);
             markAR(globals);
             markConstPool(constPool);
-            cout<<"Sweep."<<endl;
             sweep();
             GC_LIMIT *= 2;
+            cout<<"Next limit: "<<GC_LIMIT<<"\n";
         }
 };
 

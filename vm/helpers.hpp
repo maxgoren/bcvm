@@ -10,7 +10,7 @@ using namespace std;
 void freeListObject(GCItem* item) {
     for (auto it : *item->list) {
         if (it.type == OBJECT) {
-            free(it.objval);
+            alloc.free(it.objval);
         }
     }
     delete item->list;
@@ -19,7 +19,7 @@ void freeListObject(GCItem* item) {
 void freeClassObject(GCItem* item) {
     for (auto it : item->object->fields) {
         if (it.second.type == OBJECT)
-            free(it.second.objval);
+            alloc.free(it.second.objval);
     }
     delete item->object;
 }

@@ -5,7 +5,6 @@
 #include "instruction.hpp"
 #include "gcobject.hpp"
 
-static const int MAX_OP_STACK = 1255;
 static const int MAX_LOCAL = 255;
 
 struct ActivationRecord : GCObject {
@@ -23,7 +22,7 @@ struct ActivationRecord : GCObject {
         alloc.getLiveList().insert(this);
     }
     ~ActivationRecord() {
-        
+
     }
 };
 

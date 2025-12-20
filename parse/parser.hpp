@@ -55,10 +55,6 @@ class Parser {
                     match(TK_COMMA);
                 t->next = statement();
                 t = t->next;
-                if (expect(TK_COLON)) {
-                    match(TK_COLON);
-                    t->right = expression();
-                }
             }
             return d.next;
         }
@@ -246,13 +242,24 @@ class Parser {
             }
             return n;
         }
-        astnode* expression() {
+        astnode* assignExpr() {
             astnode* n = logicalExpr();
             while (expect(TK_ASSIGN) || expect(TK_ASSIGN_DIFF) || expect(TK_ASSIGN_SUM)) {
                 astnode* q = new astnode(BIN_EXPR, current());
                 match(lookahead());
                 q->left = n;
                 q->right = logicalExpr();
+                n = q;
+            }
+            return n;
+        }
+        astnode* expression() {
+            astnode* n = assignExpr();
+            while (expect(TK_COLON)) {
+                astnode* q = new astnode(BIN_EXPR, current());
+                match(lookahead());
+                q->left = n;
+                q->right = assignExpr();
                 n = q;
             }
             return n;
