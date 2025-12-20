@@ -27,5 +27,11 @@ struct ActivationRecord : GCObject {
     }
 };
 
+void freeAR(ActivationRecord* to) {
+    if (to != nullptr) {
+        delete to;
+    }
+}
+
 
 #endif

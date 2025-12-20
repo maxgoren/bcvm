@@ -15,37 +15,27 @@ class GarbageCollector {
             if (curr != nullptr && curr->marked == false) {
                 curr->marked = true;
                 if (curr->type == LIST && curr->list != nullptr) {
-                    //cout<<"L";
                     for (auto & it : *curr->list) {
                         markItem(&it);
                     }
-                } else if (curr->type == CLOSURE && curr->closure != nullptr) {
-                    //cout<<"&";
-                    markAR(curr->closure->env);
-                } else if (curr->type == CLASS && curr->object != nullptr && curr->object->instantiated) {
-                    //cout<<"@";
+                } else if (curr->type == CLASS && curr->object != nullptr) {
                     for (auto & it : curr->object->fields) {
                         markItem(&it.second);
                     }
-                } else if (curr->type == STRING && curr->strval != nullptr) {
-                    //cout<<"$"<<endl;
+                } else if (curr->type == CLOSURE && curr->closure != nullptr) {
+                    markAR(curr->closure->env);
                 }
             }
         }
         void markItem(StackItem* si) {
-            //cout<<",";
             if (si->type == OBJECT) {
                 markObject(si->objval);
-                //cout<<".";
             }
         }
         void markAR(ActivationRecord* callframe) {
             ActivationRecord* ar = callframe;
-            //cout<<"#";
             if (ar != nullptr && !ar->marked) {
-                //cout<<"*: ";
                 ar->marked = true;
-
                 for (int i = 0; i < 255; i++) {
                     markItem(&ar->locals[i]);
                 }
@@ -55,26 +45,23 @@ class GarbageCollector {
         }
         void sweep() {
             unordered_set<GCObject*> nextGen;
-            unordered_set<GCObject*> toFree;
+            int far = 0, fri = 0, ltn = 0;
             for (auto & it : alloc.getLiveList()) {
                 if (it->marked) {
                     it->marked = false;
                     nextGen.insert(it);
+                    ltn++;
                 } else {
-                    toFree.insert(it);
+                    if (it->isAR) {
+                        freeAR((ActivationRecord*)it);
+                        far++;
+                    } else {
+                        alloc.free((GCItem*)it);
+                        fri++;
+                    }
                 }
             }
-            //cout<<"Collecting: "<<toFree.size()<<endl;
-            for (auto & it : toFree) {
-                if (it->isAR) {
-                    // cout<<"Free AR."<<endl;
-                    freeAR(it);
-                } else {
-                    //cout<<"Free item"<<endl;
-                    alloc.free((GCItem*)it);
-                }
-            }
-            //cout<<alloc.getLiveList().size()<<", "<<toFree.size()<<", "<<nextGen.size()<<endl;
+            cout<<"ARs: "<<far<<", Heap Items: "<<fri<<", Lives on: "<<ltn<<endl;
             alloc.getLiveList().swap(nextGen);
         }
         void markOpStack(StackItem ops[], int sp) {
@@ -93,25 +80,21 @@ class GarbageCollector {
                 }
             }
         }
-        void freeAR(GCObject* to) {
-            if (to != nullptr) {
-                delete to;
-            }
-        }
         int GC_LIMIT;
     public:
         GarbageCollector() {
-            GC_LIMIT = 512;
+            GC_LIMIT = 512 * sizeof(ActivationRecord);
         }
         bool ready() {
-            return alloc.getLiveList().size() > GC_LIMIT;
+            return (alloc.getLiveList().size() * sizeof(ActivationRecord)) > GC_LIMIT;
         }
-
         void run(ActivationRecord* callstk, ActivationRecord* globals, StackItem opstk[], int sp, ConstPool* constPool) {
+            cout<<"Mark ";
             markOpStack(opstk, sp);
             markAR(callstk);
             markAR(globals);
             markConstPool(constPool);
+            cout<<"Sweep."<<endl;
             sweep();
             GC_LIMIT *= 2;
         }

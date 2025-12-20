@@ -63,9 +63,6 @@ class VM {
             if (callstk != nullptr && callstk->control != nullptr) {
                 callstk = callstk->control;
             }
-            if (collector.ready()) {
-                collector.run(callstk, globals, opstk, sp, &constPool);
-            }
             if (verbLev > 1) cout<<"Leaving scope."<<endl;
         }
         void callProcedure(Instruction& inst) {
@@ -339,7 +336,8 @@ class VM {
                 case decr:     { top(0).numval -= 1; } break;
                 default:
                     break;
-            }       
+            }
+            if (collector.ready()) collector.run(callstk, globals, opstk, sp, &constPool);       
         }
         Instruction& fetch() {
             return ip < codePage.size() && ip > -1 ? codePage[ip++]:haltSentinel;
