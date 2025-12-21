@@ -16,7 +16,7 @@ class Compiler {
         ByteCodeGenerator codeGen;
     public:
         Compiler(int verbosity = 0) {
-            if (verbosity > 1) {
+            if (verbosity > 0) {
                 lexer = Lexer(true);
                 parser = Parser(true);
                 codeGen = ByteCodeGenerator(true);

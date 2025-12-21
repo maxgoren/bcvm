@@ -307,25 +307,6 @@ class  ByteCodeGenerator {
             emit(Instruction(jump, cpos));
             restore();
         }
-        void emitFuncDef(astnode* n) {
-            if (noisey) cout<<"Compiling Function Definition: "<<n->token.getString()<<endl;
-            int numArgs = 0;
-            for (astnode* x = n->left; x != nullptr; x = x->next)
-                numArgs++;
-            int L1 = skipEmit(0);
-            skipEmit(1);
-            string name = n->token.getString();
-            emit(Instruction(defun, name, numArgs, 0));
-            symTable.openFunctionScope(name, L1+1);
-            genCode(n->right, false);
-            emit(Instruction(retfun));
-            int cpos = skipEmit(0);
-            symTable.closeScope();
-            skipTo(L1);
-            emit(Instruction(jump, cpos));
-            restore();
-            emitStoreFuncInEnvironment(n, false);
-        }
         void emitStoreFuncInEnvironment(astnode* n, bool isLambda) {
             string name = n->token.getString();
             SymbolTableEntry fn_info = symTable.lookup(name);
@@ -393,7 +374,6 @@ class  ByteCodeGenerator {
         void genStatement(astnode* n, bool needLvalue) {
             switch (n->stmt) {
                 case DEF_CLASS_STMT: { emitClassDef(n); } break;
-                case DEF_STMT:    { emitFuncDef(n); } break;
                 case BLOCK_STMT:  { emitBlock(n);   } break;
                 case IF_STMT:     { emitIfStmt(n);   } break;
                 case LET_STMT:    { emitLet(n);      } break;

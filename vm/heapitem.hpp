@@ -7,32 +7,8 @@
 #include "gcobject.hpp"
 using namespace std;
 
-enum GCType {
-    STRING, FUNCTION, CLOSURE, LIST, CLASS, NILPTR
-};
-
 struct Scope;
-
-struct Function {
-    string name;
-    int start_ip;
-    Scope* scope;
-    Function(string n, int sip, Scope* sc) : name(n), start_ip(sip), scope(sc) { }
-    Function(const Function& f) {
-        name = f.name;
-        start_ip  = f.start_ip;
-        scope = f.scope;
-    }
-    Function& operator=(const Function& f) {
-        if (this != &f) {
-            name = f.name;
-            start_ip  = f.start_ip;
-            scope = f.scope;
-        }
-        return *this;
-    }
-};
-
+struct Function;
 struct StackItem;
 struct ClassObject;
 struct Closure;
@@ -85,7 +61,7 @@ struct GCItem : GCObject {
     string toString() {
         switch (type) {
             case STRING: return *(strval);
-            case FUNCTION: return "(func)" + func->name;
+            case FUNCTION: return "(func)";
             case CLOSURE: return closureToString(closure);
             case LIST: return listToString(list);
             case CLASS: return "(class)" + classToString(object);
@@ -97,7 +73,7 @@ struct GCItem : GCObject {
             return false;
         switch (type) {
             case STRING: return *strval == *rhs->strval;
-            case FUNCTION: return func->name == rhs->func->name;
+            case FUNCTION: return func == rhs->func;
             case LIST: return listToString(list) == listToString(rhs->list);
             case CLASS: return object == rhs->object;
             case CLOSURE: return closure == rhs->closure;

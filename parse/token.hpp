@@ -15,6 +15,7 @@ class Token {
         TKSymbol getSymbol() { return symbol; }
         string getString() { return strval; }
         void setString(string s) { strval = s; }
+        void setSymbol(TKSymbol s) { symbol = s; }
         int scopeLevel() { return depth; }
         void setScopeLevel(int level) { depth = level; }
         void setLineNum(int ln) { lineNum = ln; }

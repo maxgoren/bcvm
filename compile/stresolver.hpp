@@ -30,14 +30,6 @@ class STBuilder {
                     buildSymbolTable(t->right);
                     symTable->closeScope();
                 } break;
-                case DEF_STMT: {
-                    symTable->openFunctionScope(t->token.getString(), -1);
-                    for (auto it = t->left; it != nullptr; it = it->next) {
-                        buildSymbolTable(it);
-                    }
-                    buildSymbolTable(t->right);
-                    symTable->closeScope();
-                }  break;
                 case BLOCK_STMT: {
                     t->token.setString(nameBlock());
                     symTable->openFunctionScope(t->token.getString(), -1);
@@ -234,17 +226,6 @@ class ResolveLocals {
                     defineName(node->left->token.getString());
                     openScope(node->left->token.getString());
                     resolve(node->left);
-                    resolve(node->right);
-                    closeScope();
-                } break;
-                case DEF_STMT: {
-                    declareName(node->token.getString());
-                    defineName(node->token.getString());
-                    openScope(node->token.getString());
-                    for (auto it = node->left; it != nullptr; it = it->next) {
-                        declareName(it->left->token.getString());
-                        defineName(it->left->token.getString());
-                    }
                     resolve(node->right);
                     closeScope();
                 } break;

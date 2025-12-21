@@ -1,12 +1,12 @@
 #ifndef scopingst_hpp
 #define scopingst_hpp
+#include <iostream>
+#include <vector>
+#include <map>
 #include "../vm/stackitem.hpp"
 #include "../vm/constpool.hpp"
 #include "../vm/callframe.hpp"
 #include "../vm/closure.hpp"
-#include <map>
-#include <vector>
-#include <iostream>
 using namespace std;
 
 const unsigned int MAX_LOCALS = 255;

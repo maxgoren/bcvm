@@ -365,32 +365,9 @@ class VM {
                     cout<<(j)<<": "<<"{"<<x->locals[j].toString()<<"}, ";
                 }
                 cout<<"]"<<endl;
-                if (x->access != x->control) {
-                    cout<<"\t   Lexical stack: \n";
-                    int l = i;
-                    auto t = x->access;
-                    while (t != globals) {
-                        cout<<"\t   \t    \t     "<<l++<<": [ ";
-                        for (int j = 1; j <= 5; j++) {
-                            cout<<(j)<<": "<<"{"<<t->locals[j].toString()<<"}, ";
-                        }
-                        cout<<"]"<<endl;
-                        t = t->access;
-                    }
-                    cout<<"\t  \t   \t  ";
-                    for (int j = 1; j <= 5; j++) {
-                        cout<<(j)<<": "<<"{"<<t->locals[j].toString()<<"}, ";
-                    }
-                    cout<<endl;
-                }
                 x = x->control;
             }            
-            cout<<"Globals: \n";
-            cout<<"\t    ";
-            for (int j = 1; j <= 5; j++) {
-                cout<<(j)<<": "<<"{"<<globals->locals[j].toString()<<"}, ";
-            }
-            cout<<"]"<<endl;
+            
         }
         void init(vector<Instruction>& cp, int verbosity) {
             codePage = cp;

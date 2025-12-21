@@ -1,8 +1,9 @@
 fn outer(let x) { 
     let y := x + 1; 
-    let inner := &(let z) { return z+y; } 
+    let inner := &(let z) -> z+y; 
     return inner; 
-}; 
+}
+
 let ci := outer(5); 
 let result := ci(10); 
 println result;

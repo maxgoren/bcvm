@@ -6,6 +6,22 @@
 #include "token.hpp"
 using namespace std;
 
+/*
+
+    Implementation notes:
+            Function Definition is implemented as syntactic sugar for a
+            creating a variable definition with an assignment expression binding 
+            the function body as a lambda expression to the supplied name. 
+            In this way functions are unified so 
+            
+                fn func(let x) { return x } 
+            
+            will generate the same instruction sequence as 
+            
+                let func := &(let x) -> x;
+            
+            
+*/
 
 class Parser {
     private:    
@@ -265,7 +281,6 @@ class Parser {
             return n;
         }
         astnode* functionBody(astnode* n) {
-            match(TK_LPAREN);
             n->left = paramList();
             match(TK_RPAREN);
             if (expect(TK_LCURLY)) {
@@ -341,11 +356,18 @@ class Parser {
             return n;
         }
         astnode* parseFuncDef() {
-            astnode* n = new astnode(DEF_STMT, current());
+            astnode* n = new astnode(LET_STMT, current());
+            astnode* m = new astnode(BIN_EXPR, current());
+            m->token.setString(":=");
+            m->token.setSymbol(TK_ASSIGN);
             match(TK_FN);
-            n->token = current();
+            m->left = new astnode(ID_EXPR, current());
             match(TK_ID);
-            n = functionBody(n);
+            m->right = new astnode(LAMBDA_EXPR, current());
+            m->right->token.setString(m->left->token.getString());
+            match(TK_LPAREN);
+            m->right = functionBody(m->right);
+            n->left = m;
             return n;
         }
         astnode* parseClassDef() {

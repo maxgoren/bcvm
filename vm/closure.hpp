@@ -2,7 +2,29 @@
 #define closure_hpp
 #include "callframe.hpp"
 
-struct Closure : GCObject {
+struct Scope;
+
+struct Function {
+    string name;
+    int start_ip;
+    Scope* scope;
+    Function(string n, int sip, Scope* sc) : name(n), start_ip(sip), scope(sc) { }
+    Function(const Function& f) {
+        name = f.name;
+        start_ip  = f.start_ip;
+        scope = f.scope;
+    }
+    Function& operator=(const Function& f) {
+        if (this != &f) {
+            name = f.name;
+            start_ip  = f.start_ip;
+            scope = f.scope;
+        }
+        return *this;
+    }
+};
+
+struct Closure {
     Function* func;
     ActivationRecord* env;
     Closure(Function* f, ActivationRecord* e) : func(f), env(e) { }

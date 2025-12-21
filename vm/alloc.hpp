@@ -13,11 +13,13 @@ class GCAllocator {
         unordered_set<GCObject*> live_items;
         deque<GCItem*> free_list;
         GCItem* next() {
+            GCItem* x = nullptr;
             if (free_list.empty()) {
-                return new GCItem();
+                x = new GCItem();
+            } else {
+                x = free_list.front();
+                free_list.pop_front();
             }
-            GCItem* x = free_list.front(); 
-            free_list.pop_front();
             x->marked = false;
             x->isAR = false;
             return x;
