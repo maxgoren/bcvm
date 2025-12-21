@@ -164,7 +164,6 @@ class ScopingST {
         void openObjectScope(string name) {
             if (currentScope->symTable.find(name) != currentScope->symTable.end()) {
                  if (currentScope->symTable.find(name).type == CLASSVAR) {
-                    cout<<"Reopened Object scope for "<<name<<endl;
                     Scope* ns = constPool.get(currentScope->symTable.find(name).constPoolIndex).objval->object->scope;
                     currentScope = ns;
                  } else {
@@ -219,7 +218,6 @@ class ScopingST {
                     return x->symTable[name];
                 x = x->enclosing;
             }
-            cout<<"lookup "<<name<<" failed"<<endl;
             return nfSentinel;
         }
         ClassObject* lookupClass(string name) {

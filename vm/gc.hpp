@@ -82,7 +82,7 @@ class GarbageCollector {
             GC_LIMIT = 512 * sizeof(ActivationRecord);
         }
         bool ready() {
-            return false;//(alloc.getLiveList().size() * sizeof(ActivationRecord)) > GC_LIMIT;
+            return (alloc.getLiveList().size() * sizeof(ActivationRecord)) > GC_LIMIT;
         }
         void run(ActivationRecord* callstk, ActivationRecord* globals, StackItem opstk[], int sp, ConstPool* constPool) {
             markOpStack(opstk, sp);
@@ -91,7 +91,6 @@ class GarbageCollector {
             markConstPool(constPool);
             sweep();
             GC_LIMIT *= 2;
-            cout<<"Next limit: "<<GC_LIMIT<<"\n";
         }
 };
 

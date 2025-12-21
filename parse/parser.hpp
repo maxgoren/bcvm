@@ -401,14 +401,16 @@ class Parser {
             }
             return x;
         }
+        bool noisey;
     public:
-        Parser() {
-
+        Parser(bool debug = false) {
+            noisey = debug;
         }
         astnode* parse(vector<Token> tokens) {
             init(tokens);
             astnode* p = stmt_list();
-            preorder(p, 1);
+            if (noisey)
+                preorder(p, 1);
             return p;
         }
 }; 

@@ -146,7 +146,7 @@ class  ByteCodeGenerator {
             emit(Instruction(isLvalue ? stidx:ldidx));
         }
         void emitFieldAccess(astnode* n, bool isLvalue) {
-            cout<<"Emitting Field access for "<<n->left->token.getString()<<"."<<n->right->token.getString()<<endl;
+            if (noisey) cout<<"Emitting Field access for "<<n->left->token.getString()<<"."<<n->right->token.getString()<<endl;
             emitLoad(n->left, false);
             if (n->right->expr == ID_EXPR) {
                 int fieldname = symTable.getConstPool().insert(alloc.alloc(new string(n->right->token.getString())));
@@ -173,7 +173,6 @@ class  ByteCodeGenerator {
                 return;
             switch (operation->token.getSymbol()) {
                 case TK_APPEND: {
-                    cout<<"Append op"<<endl;
                     genExpression(listname, false);
                     genExpression(operation->left, false);
                     emit(Instruction(list_append));
@@ -325,7 +324,7 @@ class  ByteCodeGenerator {
             skipTo(L1);
             emit(Instruction(jump, cpos));
             restore();
-            emitStoreFuncInEnvironment(n, false);            
+            emitStoreFuncInEnvironment(n, false);
         }
         void emitStoreFuncInEnvironment(astnode* n, bool isLambda) {
             string name = n->token.getString();
@@ -453,34 +452,37 @@ class  ByteCodeGenerator {
                     break;
                 addr++;
             }
+            cout<<"----------------"<<endl;
             cout<<"Symbol table: ";
             symTable.print();
             cout<<"----------------"<<endl;
         }
+        void printConstPool() {
+            cout<<"Constant Pool: "<<endl;
+            for (int i = 0; i < symTable.getConstPool().size(); i++) {
+                cout<<i<<": {"<<symTable.getConstPool().get(i).toString()<<"}"<<endl;
+            }
+            cout<<"-------------------"<<endl;
+        }
     public:
-        ByteCodeGenerator() {
+        ByteCodeGenerator(bool debug = false) {
             code = vector<Instruction>(1024, Instruction(halt, 0));
             code.resize(1024);
             cpos = 0;
             highCI = 0;
-            noisey = true;
+            noisey = debug;
         }
         ConstPool& getConstPool() {
             return symTable.getConstPool();
         }
         vector<Instruction> compile(astnode* n) {
-            if (noisey) cout<<"Build Symbol Table: "<<endl;
             sr.buildSymbolTable(n, &symTable);
             rl.resolveLocals(n, &symTable);
-            if (noisey) cout<<"Compiling..."<<endl;
             genCode(n, false);
-            printByteCode();
-            cout<<"Constant Pool: "<<endl;
-            for (int i = 0; i < symTable.getConstPool().size(); i++) {
-                cout<<i<<": {"<<symTable.getConstPool().get(i).toString()<<"}"<<endl;
+            if (noisey) {
+                printByteCode();
+                printConstPool();
             }
-            cout<<"HighCI: "<<cpos<<endl;
-            cout<<"-------------------"<<endl;
             return code;
         }
 };

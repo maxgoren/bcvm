@@ -13,16 +13,20 @@ class Compiler {
     private:
         Lexer lexer;
         Parser parser;
-        ByteCodeGenerator compiler;
+        ByteCodeGenerator codeGen;
     public:
-        Compiler() {
-
+        Compiler(int verbosity = 0) {
+            if (verbosity > 1) {
+                lexer = Lexer(true);
+                parser = Parser(true);
+                codeGen = ByteCodeGenerator(true);
+            }
         }
         ConstPool& getConstPool() {
-            return compiler.getConstPool();
+            return codeGen.getConstPool();
         }
         vector<Instruction> compile(CharBuffer* buff) {
-            return compiler.compile(parser.parse(lexer.lex(buff)));
+            return codeGen.compile(parser.parse(lexer.lex(buff)));
         }
         vector<Instruction> operator()(CharBuffer* buff) {
             return compile(buff);
@@ -39,7 +43,7 @@ void initStdLib(Compiler& compiler, VM& vm) {
 
 void compileAndRun(CharBuffer* buff, int verbosity) {
     VM vm;
-    Compiler compiler;
+    Compiler compiler(verbosity);
     initStdLib(compiler, vm);
     vector<Instruction> code = compiler.compile(buff);
     vm.setConstPool(compiler.getConstPool());
@@ -62,7 +66,7 @@ void runCommand(string cmd, int verbosity) {
 void repl(int vb) {
     bool looping = true;
     StringBuffer* sb = new StringBuffer();
-    Compiler compiler;
+    Compiler compiler(vb);
     VM vm;
     initStdLib(compiler, vm);
     while (looping) {

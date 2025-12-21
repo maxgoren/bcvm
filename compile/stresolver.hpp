@@ -94,8 +94,6 @@ class STBuilder {
                     if (fromLet) {
                         if (symTable->existsInScope(t->token.getString()) == false) {
                             symTable->insert(t->token.getString());
-                        } else {
-                            cout<<"A variable with the name "<<t->token.getString()<<" has already been declared in this scope."<<endl;
                         }
                     } else if (symTable->lookup(t->token.getString()).addr == -1) {    
                         cout<<"Error: Unknown variable name: "<<t->token.getString()<<endl;
@@ -152,7 +150,6 @@ class STBuilder {
         STBuilder() { }
         void buildSymbolTable(astnode* ast, ScopingST* st) {
             symTable = st;
-            cout<<"Building Symbol Table: ";
             buildSymbolTable(ast);
         }
 };
@@ -178,10 +175,6 @@ class ResolveLocals {
         void declareName(string name) {
             if (scopes.empty())
                 return;
-            if (scopes.back().find(name) != scopes.back().end()) {
-                cout<<"A variable with the name "<<name<<" has already been declared."<<endl;
-                return;
-            }
             scopes.back().insert(make_pair(name, false));
         }
         void defineName(string name) {
@@ -194,11 +187,9 @@ class ResolveLocals {
                 if (scopes[i].find(name) != scopes[i].end()) {
                     int depth = (scopes.size() - 1 - i);
                     t->token.setScopeLevel(depth);
-                    cout << "Variable " << name << " resolved to scope level " << t->token.scopeLevel() <<" ("<<(scopes.size()-1-i)<<")"<<endl;
                     return;
                 }
             }
-            cout << "Variable " << name << " resolved as global"<< endl;
             t->token.setScopeLevel(GLOBAL_SCOPE);
         }
         void resolveStatement(astnode* node) {
@@ -312,7 +303,6 @@ class ResolveLocals {
 
         }
         void resolveLocals(astnode* node, ScopingST* sym) {
-            cout<<"Resolving Locals."<<endl;
             st = sym;
             resolve(node);
         }

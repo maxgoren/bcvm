@@ -10,16 +10,17 @@ using namespace std;
 class Lexer {
     private:
         CharBuffer* buffer;
+        bool noisey;
         bool in_comment;
         bool shouldSkip(char ch);
         Token makeLexToken(TKSymbol symbol, char* text, int length);
         Token nextToken();
     public:
-        Lexer();
+        Lexer(bool debug);
         vector<Token> lex(CharBuffer* buffer);
 };
 
-Lexer::Lexer() { }
+Lexer::Lexer(bool dbg = false) { noisey = dbg; }
 
 Token Lexer::makeLexToken(TKSymbol symbol, char* text, int length) {
     return Token(symbol, string(text, length));
@@ -74,7 +75,7 @@ vector<Token> Lexer::lex(CharBuffer* buff) {
         }
         if (next.getSymbol() != TK_EOI && !in_comment) {
             tokens.push_back(next);
-            cout<<"Recognized: {'"<<tokens.back().getString()<<"'}"<<endl;
+            if (noisey) cout<<"Recognized: {'"<<tokens.back().getString()<<"'}"<<endl;
         } else {
             if (next.getSymbol() == TK_CLOSE_COMMENT)
                 in_comment = false;
