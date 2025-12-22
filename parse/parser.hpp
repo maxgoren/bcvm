@@ -14,11 +14,11 @@ using namespace std;
             the function body as a lambda expression to the supplied name. 
             In this way functions are unified so 
             
-                fn func(let x) { return x } 
+                fn dub(let x) { return x+x; } 
             
             will generate the same instruction sequence as 
             
-                let func := &(let x) -> x;
+                let dub := &(let x) -> x+x;
             
             
 */

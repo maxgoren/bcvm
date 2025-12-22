@@ -46,6 +46,11 @@ class ConstPool {
             data = new StackItem[maxN];
         }
         ~ConstPool() {
+            for (int i = 0; i < maxN; i++) {
+                if (data[i].type == OBJECT) {
+                    alloc.free(data[i].objval);
+                }
+            }
             delete [] data;
         }
         ConstPool(const ConstPool& cp) {
@@ -69,7 +74,7 @@ class ConstPool {
         }
         int insert(StackItem item) {
             string strval;
-            if (item.type == NUMBER || (item.type == OBJECT && item.objval->type == STRING)) {
+            if (item.type == OBJECT && item.objval->type == STRING) {
                 strval = item.toString();
                 if (stringPool.find(strval) != stringPool.end()) {
                     return stringPool.at(strval);
@@ -77,7 +82,7 @@ class ConstPool {
             }
             int addr = nextAddress();
             data[addr] = item;
-            if (item.type == NUMBER || (item.type == OBJECT && item.objval->type == STRING)) {
+            if (item.type == OBJECT && item.objval->type == STRING) {
                 if (!strval.empty()) {
                     stringPool.insert(make_pair(strval, addr));
                 }

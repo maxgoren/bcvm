@@ -16,7 +16,6 @@ class VM {
         vector<Instruction> codePage;
         int ip;
         int sp;
-        int fp;
         ConstPool constPool;
         GarbageCollector collector;
         ActivationRecord* callstk;
@@ -114,7 +113,7 @@ class VM {
         void loadUpval(Instruction& inst) {
             opstk[++sp] = walkChain(inst.operand[1].intval)->locals[inst.operand[0].intval];
             if (verbLev > 1)
-                cout<<"loaded Upval: "<<opstk[sp].toString()<<"from "<<inst.operand[0].intval<<" of scope "<<(fp)<<endl;
+                cout<<"loaded Upval: "<<opstk[sp].toString()<<"from "<<inst.operand[0].intval<<" of scope "<<(inst.operand[1].intval)<<endl;
         } 
         void storeLocal(Instruction& inst) {
             StackItem t = opstk[sp--];
@@ -212,7 +211,6 @@ class VM {
                 cout<<"Error: ranges require a list context."<<endl;
                 return;
             }
-            cout<<"Creating set of integers from "<<lo<<" to "<<hi<<endl;
             for (int i = lo; i <= hi; i++) {
                 top(0).objval->list->push_back((double)i);
             }
@@ -338,7 +336,7 @@ class VM {
                 default:
                     break;
             }
-            if (collector.ready()) collector.run(callstk, globals, opstk, sp, &constPool);       
+            if (collector.ready()) collector.run(callstk, opstk, sp, &constPool);       
         }
         Instruction& fetch() {
             return ip < codePage.size() && ip > -1 ? codePage[ip++]:haltSentinel;
@@ -378,13 +376,25 @@ class VM {
         VM() {
             ip = 0;
             sp = 0;
-            fp = 0;
             haltSentinel = Instruction(halt);
             globals =  new ActivationRecord(GLOBAL_SCOPE,0, nullptr, nullptr);
             callstk = globals;
         }
         ~VM() {
-            delete callstk;
+            for (int i = MAX_OP_STACK-1; i > -1; i--) {
+                if (opstk[i].type == OBJECT)
+                    alloc.free(opstk[i].objval);
+            }
+            auto x = callstk;
+            while (x != nullptr) {
+                auto tmp = x;
+                for (int i = 0; i < 255; i++) {
+                    if (opstk[i].type == OBJECT)
+                        alloc.free(opstk[i].objval);
+                }
+                x = x->control;
+                delete tmp;
+            }
         }
         void setConstPool(ConstPool& cp) {
             constPool = cp;
@@ -413,7 +423,7 @@ class VM {
                 }
                 if (verbosity > 0) cout<<"================"<<endl;
             }
-            collector.run(callstk, globals, opstk, sp, &constPool);
+            collector.run(callstk, opstk, sp, &constPool);
         }
 };
 

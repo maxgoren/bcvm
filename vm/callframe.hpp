@@ -21,8 +21,16 @@ struct ActivationRecord : GCObject {
         isAR = true;
         alloc.getLiveList().insert(this);
     }
+    ActivationRecord(const ActivationRecord& ar) {
+        cp_index = ar.cp_index;
+        ret_addr = ar.ret_addr;
+        control = ar.control;
+        access = ar.access;
+        isAR = true;
+        marked = ar.marked;
+    }
     ~ActivationRecord() {
-
+        
     }
 };
 

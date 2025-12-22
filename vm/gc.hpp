@@ -76,6 +76,11 @@ class GarbageCollector {
                 }
             }
         }
+        void markRoots(ActivationRecord* callstk, StackItem opstk[], int sp, ConstPool* constPool) { 
+            markOpStack(opstk, sp);
+            markAR(callstk);
+            markConstPool(constPool);
+        }
         unsigned int GC_LIMIT;
     public:
         GarbageCollector() {
@@ -84,11 +89,8 @@ class GarbageCollector {
         bool ready() {
             return (alloc.getLiveList().size() * sizeof(ActivationRecord)) > GC_LIMIT;
         }
-        void run(ActivationRecord* callstk, ActivationRecord* globals, StackItem opstk[], int sp, ConstPool* constPool) {
-            markOpStack(opstk, sp);
-            markAR(callstk);
-            markAR(globals);
-            markConstPool(constPool);
+        void run(ActivationRecord* callstk, StackItem opstk[], int sp, ConstPool* constPool) {
+            markRoots(callstk, opstk, sp, constPool);
             sweep();
             GC_LIMIT *= 2;
         }

@@ -37,7 +37,7 @@ class GCAllocator {
                         delete item->strval;
                 } break;
                 case LIST: {
-                   if (item->list)
+                    if (item->list)
                         delete item->list;
                 } break;
                 case CLOSURE: {

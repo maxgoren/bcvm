@@ -1,0 +1,11 @@
+fn fib(let k) {
+    if (k == 0) {
+        return 0;
+    }
+    if (k == 1) {
+        return 1;
+    }
+    return fib(k-1)+fib(k-2);
+}
+let xs := map([1 .. 20], fib);
+println xs;

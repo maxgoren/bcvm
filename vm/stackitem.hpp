@@ -250,6 +250,10 @@ string classToString(ClassObject* obj) {
 
 void freeClass(ClassObject* obj) {
     if (obj != nullptr) {
+        for (auto & m : obj->fields) {
+            if (m.second.type == OBJECT)
+                alloc.free(m.second.objval);
+        }
         delete obj;
     }
 }
