@@ -40,13 +40,12 @@ class Parser {
         bool expect(TKSymbol symbol) {
             return symbol == lookahead();
         }
-        bool match(TKSymbol symbol) {
+        void match(TKSymbol symbol) {
             if (expect(symbol)) {
                 advance();
-                return true;
+                return;
             }
-            cout<<"Mismatched token: "<<current().getString()<<"Thought it was "<<symbol<<endl;
-            return false;
+            cout<<"Mismatched token: "<<current().getString()<<endl;
         }
         Token& current() {
             return tokens[tpos];

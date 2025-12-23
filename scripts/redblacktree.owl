@@ -1,0 +1,98 @@
+let red := true;
+let black := false;
+
+class TreeNode {
+    let info;
+    let color;
+    let left;
+    let right;
+}
+
+fn isRed(let tree) {
+    if (tree == nil) {
+        return false;
+    }
+    return (tree.color == red);
+}
+
+fn rotL(let h) {
+    let x := h.right; 
+    h.right := x.left; 
+    x.left := h;
+    x.color := h.color;
+    h.color := red;
+    return x;
+}
+
+fn rotR(let h) {
+    let x := h.left;
+    h.left := x.right;
+    x.right := h;
+    x.color := h.color;
+    h.color := red;
+    return x;
+}
+
+fn putR(let tree, let key) {
+    println "inserting " + key;
+    if (tree == nil) {
+        tree := new TreeNode();
+        tree.info := key;
+        tree.color := true;
+        return tree;
+    }
+    if (key < tree.info) {
+        tree.left := putR(tree.left, key);
+    } else {
+        tree.right := putR(tree.right, key);
+    }
+    if (isRed(tree.right) && !isRed(tree.left)) {
+        println "RL";
+         tree := rotL(tree); 
+    }
+    if (isRed(tree.left) && isRed(tree.left.left)) {
+        println "RR";
+        tree := rotR(tree);
+    }
+    if (isRed(tree.left) && isRed(tree.right)) {
+        println "CF";
+        tree.color := true;
+        tree.left.color := false;
+        tree.right.color := false;
+    }
+    return tree;
+} 
+
+fn put(let tree, let key) {
+    tree := putR(tree, key);
+    tree.color := black;
+    return tree;
+}
+
+fn preorder(let xs) {
+    if (xs != nil) {
+        print xs.info + " ";
+        preorder(xs.left);
+        preorder(xs.right);
+    }
+}
+
+fn inorder(let xs) {
+    if (xs != nil) {
+        inorder(xs.left);
+        print xs.info + " ";
+        inorder(xs.right);
+    }
+}
+
+let root := nil;
+let sed := "asearchingexample";
+let i := 0;
+while (i < 17) {
+    root := put(root, sed[i]);
+    i++;
+}
+preorder(root);
+println " ";
+inorder(root);
+println " "

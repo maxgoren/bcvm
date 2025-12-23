@@ -15,6 +15,7 @@ class Lexer {
         bool shouldSkip(char ch);
         Token makeLexToken(TKSymbol symbol, char* text, int length);
         Token nextToken();
+        vector<Token> tokenError(Token tk);
     public:
         Lexer(bool debug);
         vector<Token> lex(CharBuffer* buffer);
@@ -53,7 +54,7 @@ Token Lexer::nextToken() {
         }
     }
     if (last_match == 0) {
-        return {TK_EOI};
+        return {TK_EOI, "error"};
     }
     return Token((TKSymbol)accept[last_match], buffer->sliceFromStart(match_len), buffer->lineNo());
 }
@@ -72,14 +73,15 @@ vector<Token> Lexer::lex(CharBuffer* buff) {
         next = nextToken();
         if (next.getSymbol() == TK_OPEN_COMMENT) {
             in_comment = true;
-        }
-        if (next.getSymbol() != TK_EOI && !in_comment) {
+        } else if (next.getSymbol() == TK_CLOSE_COMMENT && in_comment) {
+            in_comment = false;
+        } else if (next.getSymbol() != TK_EOI && !in_comment) {
             tokens.push_back(next);
             if (noisey) cout<<"Recognized: {'"<<tokens.back().getString()<<"'}"<<endl;
         } else {
-            if (next.getSymbol() == TK_CLOSE_COMMENT)
-                in_comment = false;
+            cout<<buffer->get()<<"?"<<endl;
             buffer->advance();
+            cout<<buffer->get()<<"?"<<endl;
         }
     }
     tokens.push_back(Token(TK_EOI, "<fin>"));

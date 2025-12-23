@@ -5,7 +5,7 @@
 using namespace std;
 
 static const int BLOCK_CPIDX = -420;
-static const int MAX_OP_STACK = 2255;
+static const int MAX_OP_STACK = 1337;
 
 class VM {
     private:

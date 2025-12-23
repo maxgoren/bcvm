@@ -121,6 +121,7 @@ class FileStringBuffer : public CharBuffer {
                     str_pos = 0;
                 }
             }
+            if (!done() && get() == '\0') advance();
         }
         void rewind() {
             if (done()) {

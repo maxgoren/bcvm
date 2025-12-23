@@ -1,0 +1,21 @@
+fn makeCounter() {
+    let x := 0;
+    let counter := &() { x := x + 1; return x; };
+    return counter;
+}
+let t := makeCounter();
+println t();
+let z := makeCounter();
+println t();
+println z();
+let a := makeCounter();
+println t();
+println z();
+println a();
+let k := 1;
+while (k < 12) {
+    println t();
+    println z();
+    println a();
+    k++;
+}

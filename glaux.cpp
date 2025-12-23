@@ -35,7 +35,7 @@ class Compiler {
 
 void initStdLib(Compiler& compiler, VM& vm) {
     FileStringBuffer* fb = new FileStringBuffer();
-    fb->readFile("vm/stdlib.owl");
+    fb->readFile("/usr/local/bin/vm/stdlib.owl");
     auto code = compiler.compile(fb);
     vm.setConstPool(compiler.getConstPool());
     vm.run(code, 0);
@@ -69,9 +69,10 @@ void repl(int vb) {
     Compiler compiler(vb);
     VM vm;
     initStdLib(compiler, vm);
+    unsigned int lno = 0;
     while (looping) {
         string input;
-        cout<<"Glaux> ";
+        cout<<"Glaux("<<lno++<<")> ";
         getline(cin, input);
         sb->init(input);
         vector<Instruction> code = compiler.compile(sb);
