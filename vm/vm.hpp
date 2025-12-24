@@ -161,7 +161,7 @@ class VM {
             }
         }
         void storeField(Instruction& inst) {
-            if (top(0).objval->type == CLASS) {
+            if (top(0).type == OBJECT && top(0).objval->type == CLASS) {
                 int idx = inst.operand[0].intval;    
                 string fieldName = *(constPool.get(idx).objval->strval);
                 top(0).objval->object->fields[fieldName] = top(1);

@@ -1,6 +1,7 @@
 #ifndef closure_hpp
 #define closure_hpp
 #include "callframe.hpp"
+using namespace std;
 
 struct Scope;
 
@@ -34,7 +35,7 @@ struct Closure {
         env = c.env;
     }
     ~Closure() {
-       
+
     }
     Closure& operator=(const Closure& c) {
         if (this != &c) {

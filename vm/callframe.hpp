@@ -19,7 +19,7 @@ struct ActivationRecord : GCObject {
         control = calling;
         access = defining;
         isAR = true;
-        alloc.getLiveList().insert(this);
+        alloc.registerObject(this);
     }
     ActivationRecord(const ActivationRecord& ar) {
         cp_index = ar.cp_index;

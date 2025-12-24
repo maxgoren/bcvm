@@ -78,6 +78,9 @@ class GCAllocator {
             live_items.insert(x);
             return x;
         }
+        void registerObject(GCObject* obj) {
+            live_items.insert(obj);
+        }
         unordered_set<GCObject*>& getLiveList() {
             return live_items;
         }

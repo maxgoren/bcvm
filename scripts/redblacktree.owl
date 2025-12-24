@@ -34,7 +34,6 @@ fn rotR(let h) {
 }
 
 fn putR(let tree, let key) {
-    println "inserting " + key;
     if (tree == nil) {
         tree := new TreeNode();
         tree.info := key;
@@ -88,7 +87,7 @@ fn inorder(let xs) {
 let root := nil;
 let sed := "asearchingexample";
 let i := 0;
-while (i < 17) {
+while (i < 16) {
     root := put(root, sed[i]);
     i++;
 }
