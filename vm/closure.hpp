@@ -56,4 +56,10 @@ void freeClosure(Closure* cl) {
     }   
 }
 
+void freeFunction(Function* f) {
+    if (f != nullptr) {
+        delete f;
+    }
+}
+
 #endif

@@ -24,6 +24,8 @@ class GarbageCollector {
                     }
                 } else if (curr->type == CLOSURE && curr->closure != nullptr) {
                     markAR(curr->closure->env);
+                } else if (curr->type == FUNCTION && curr->func != nullptr) {
+                    cout<<"Marked function "<<curr->func->name<<endl;
                 }
             }
         }
@@ -68,7 +70,7 @@ class GarbageCollector {
         }
         void markConstPool(ConstPool* constPool) {
             for (int i = 0; i < constPool->maxN; i++) {
-                if (constPool->data[i].type == OBJECT) { 
+                if (constPool->data[i].type == OBJECT && constPool->data[i].objval->marked == false) { 
                     constPool->data[i].objval->marked = true;
                     if (constPool->data[i].objval->type == CLOSURE && constPool->data[i].objval->closure->env != nullptr) {
                         markAR(constPool->data[i].objval->closure->env);

@@ -23,6 +23,7 @@ string classToString(ClassObject* obj);
 
 void freeClosure(Closure* cl);
 void freeClass(ClassObject* obj);
+void freeFunction(Function* f);
 
 struct GCItem : GCObject {
     GCType type;

@@ -15,7 +15,6 @@ class Lexer {
         bool shouldSkip(char ch);
         Token makeLexToken(TKSymbol symbol, char* text, int length);
         Token nextToken();
-        vector<Token> tokenError(Token tk);
     public:
         Lexer(bool debug);
         vector<Token> lex(CharBuffer* buffer);
@@ -79,9 +78,11 @@ vector<Token> Lexer::lex(CharBuffer* buff) {
             tokens.push_back(next);
             if (noisey) cout<<"Recognized: {'"<<tokens.back().getString()<<"'}"<<endl;
         } else {
-            cout<<buffer->get()<<"?"<<endl;
+            if (!in_comment)
+                cout<<buffer->get()<<"?"<<endl;
             buffer->advance();
-            cout<<buffer->get()<<"?"<<endl;
+            if (!in_comment)
+                cout<<buffer->get()<<"?"<<endl;
         }
     }
     tokens.push_back(Token(TK_EOI, "<fin>"));

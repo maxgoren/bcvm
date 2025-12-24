@@ -194,7 +194,8 @@ class ScopingST {
             } else {
                 Scope*  ns = new Scope;
                 ns->enclosing = currentScope;
-                int constIdx = constPool.insert(alloc.alloc(new Closure(new Function(name, L1, ns), nullptr)));
+                int funcId = constPool.insert(alloc.alloc(new Function(name, L1, ns)));
+                int constIdx = constPool.insert(alloc.alloc(new Closure(constPool.get(funcId).objval->func, nullptr)));
                 int envAddr = nextAddr();
                 currentScope->symTable.insert(name, SymbolTableEntry(name, envAddr, constIdx, FUNCVAR, depth(currentScope)+1));
                 currentScope = ns;

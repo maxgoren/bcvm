@@ -43,9 +43,12 @@ class GCAllocator {
                 case CLOSURE: {
                     freeClosure(item->closure);
                 } break;
-                    case CLASS: {
+                case CLASS: {
                     freeClass(item->object);
                 } break;
+                case FUNCTION: {
+                    freeFunction(item->func);
+                }
             };
             item->type = NILPTR;
             free_list.push_back(item);
@@ -61,6 +64,13 @@ class GCAllocator {
             GCItem* x = next();
             x->type = CLOSURE;
             x->closure = c;
+            live_items.insert(x);
+            return x;
+        }
+        GCItem* alloc(Function* f) {
+            GCItem* x = next();
+            x->type = FUNCTION;
+            x->func = f;
             live_items.insert(x);
             return x;
         }
