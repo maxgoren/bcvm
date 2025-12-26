@@ -270,11 +270,14 @@ class Parser {
         }
         astnode* expression() {
             astnode* n = assignExpr();
-            while (expect(TK_COLON)) {
-                astnode* q = new astnode(BIN_EXPR, current());
+            if (expect(TK_QM)) {
+                astnode* q = new astnode(TERNARY_EXPR, current());
                 match(lookahead());
                 q->left = n;
-                q->right = assignExpr();
+                q->right = new astnode(ELSE_STMT, current());
+                q->right->left = assignExpr();
+                match(TK_COLON);
+                q->right->right = assignExpr();
                 n = q;
             }
             return n;

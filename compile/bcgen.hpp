@@ -371,6 +371,22 @@ class  ByteCodeGenerator {
                 restore();
             }
         }
+        void emitTernaryExpr(astnode* n) {
+            astnode* lrc = n->right;
+            genCode(n->left, false);
+            int L1 = skipEmit(0);
+            skipEmit(1);
+            genCode(lrc->left, false);
+            int L2 = skipEmit(0);
+            skipEmit(1);
+            genCode(lrc->right, false);
+            int L3 = skipEmit(0);
+            skipTo(L1);
+            emit(Instruction(brf, L2+1));
+            skipTo(L2);
+            emit(Instruction(jump, L3));
+            restore();
+        }
         void genStatement(astnode* n, bool needLvalue) {
             switch (n->stmt) {
                 case DEF_CLASS_STMT: { emitClassDef(n); } break;
@@ -398,6 +414,7 @@ class  ByteCodeGenerator {
                 case LIST_EXPR:      { emitListOperation(n); } break;
                 case BLESS_EXPR:     { emitBlessExpr(n); } break;
                 case RANGE_EXPR:     { emitRangeExpr(n); } break;
+                case TERNARY_EXPR:   { emitTernaryExpr(n); } break;
                 default:
                     break;
             }
