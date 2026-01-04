@@ -68,13 +68,12 @@ fn rightCase(let tree) {
 fn bal234(let tree) {
     if (isRed(tree.left) && isRed(tree.right)) {
         tree := colorFlip(tree);
-    } else {
-        if (isRed(tree.left)) {
-            tree := leftCase(tree);
-        }
-        if (isRed(tree.right)) {
-            tree := rightCase(tree);
-        }
+    }
+    if (isRed(tree.left)) {
+        tree := leftCase(tree);
+    }
+    if (isRed(tree.right)) {
+        tree := rightCase(tree);
     }
     return tree;
 }

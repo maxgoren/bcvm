@@ -8,10 +8,7 @@ fn A(var k, var x1, var x2, var x3, var x4, var x5) {
         k--; 
         return A(k, B, x1, x2, x3, x4); 
     } 
-    if (k <= 0) { 
-        return x4()+x5(); 
-    } 
-    return B(); 
+    return (k <= 0 ? (x4()+x5()):B()); 
 } 
 let k := 1;
 while (k <= 16) {

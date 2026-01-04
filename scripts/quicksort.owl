@@ -1,0 +1,54 @@
+def exch(let a, let l, let r) {
+    let tmp := a[l];
+    a[l] := a[r];
+    a[r] := tmp;
+    println "exch";
+}
+
+fn medof(let a, let l, let r) {
+    println "medof3";
+    let m := (r+l)/2;
+    if (a[l] > a[r]) {
+        exch(a, l, r);
+    }
+    if (a[m] > a[r]) {
+        exch(a, m, r);
+    }
+    if (a[l] > a[r]) {
+        exch(a, m, r);
+    }
+    return m;
+}
+
+fn partition(let a, let l, let r) {
+    let v := l; 
+    let j := l+1;
+    exch(a, medof( a, l, r), v);
+    println "part";
+    while (j <= r) {
+        if (a[j] < a[v]) {
+            exch(a, j, v);
+        }
+        j++;
+    }
+    return v;
+}
+
+fn quicksort(let a, let l, let r) {
+    println "[qs]";
+    if (r > l) {
+        let i := partition(a, l, r);
+        quicksort(a, l, i-1);
+        quicksort(a, i+1, r);
+    }
+}
+
+let xs := [];
+let i := 12;
+while (i > 0) {
+    xs.append(i);  {*random(256));*}
+    i--;
+}
+println xs;
+quicksort(xs, 0, xs.size()-1);
+println xs;

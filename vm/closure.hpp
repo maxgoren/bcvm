@@ -3,13 +3,13 @@
 #include "callframe.hpp"
 using namespace std;
 
-struct Scope;
+struct BlockScope;
 
 struct Function {
     string name;
     int start_ip;
-    Scope* scope;
-    Function(string n, int sip, Scope* sc) : name(n), start_ip(sip), scope(sc) { }
+    BlockScope* scope;
+    Function(string n, int sip, BlockScope* sc) : name(n), start_ip(sip), scope(sc) { }
     Function(const Function& f) {
         name = f.name;
         start_ip  = f.start_ip;

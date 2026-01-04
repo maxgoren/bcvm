@@ -3,6 +3,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <cmath>
+#include <cstring>
 #include <deque>
 #include "alloc.hpp"
 #include "heapitem.hpp"
@@ -221,13 +222,15 @@ struct StackItem {
     }
 };
 
+struct BlockScope;
+
 struct ClassObject  {
     string name;
     int cpIdx;
     unordered_map<string, StackItem> fields;
     bool instantiated;
-    Scope* scope;
-    ClassObject(string n = "",  Scope* s = nullptr) {
+    BlockScope* scope;
+    ClassObject(string n = "",  BlockScope* s = nullptr) {
         name = n;
         scope = s;
     }

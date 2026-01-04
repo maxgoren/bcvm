@@ -172,6 +172,12 @@ class Parser {
                     n->left = primary();
                 }
                 match(TK_RPAREN);
+            } else if (expect(TK_FLOOR)) {
+                n = new astnode(UOP_EXPR, current());
+                match(TK_FLOOR);
+                match(TK_LPAREN);
+                n->left = expression();
+                match(TK_RPAREN);
             }
             if (n != nullptr && (n->expr == ID_EXPR || n->expr == LIST_EXPR)) {
                 n = parseFunctionCallAndSubscripts(n);
@@ -307,8 +313,12 @@ class Parser {
             if (expect(TK_ELSE)) {
                 astnode* e = new astnode(ELSE_STMT, current());
                 match(TK_ELSE);
-                match(TK_LCURLY);
-                e->right = stmt_list();
+                if (expect(TK_IF)) {
+                    e->right = parseIfStmt();
+                } else {
+                    match(TK_LCURLY);
+                    e->right = stmt_list();
+                }
                 e->left = n->right;
                 n->right = e;
                 match(TK_RCURLY);

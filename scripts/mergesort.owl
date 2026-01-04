@@ -1,0 +1,51 @@
+fn merge(let xs, let aux, let l, let m, let r) {
+    let k := l;
+    while (k < r) {
+        aux[k] := xs[k];
+        k++;
+    }
+    println l + ", " + m + ", " + r;
+    println aux;
+    let i := l; let j := m; k := l;
+    while (i < m && j < r) {
+        if (aux[i] < aux[j]) {
+            xs[k] := aux[i];
+            i++;
+        } else {
+            xs[k] := aux[j];
+            j++;
+        }
+        k++;
+    }
+    while (i < m) { xs[k] := aux[i]; i++; k++; }
+    while (j < r) { xs[k] := aux[j]; j++; k++; }
+}
+
+fn mergesortR(let xs, let aux, let l, let r) {
+    if (r - l <= 1) {
+        return;
+    }
+    let m := floor((l+r)/2);
+    println l + ", " + m + ", " + r;
+    mergesortR(xs, aux, l, m);
+    mergesortR(xs, aux, m, r);
+    merge(xs, aux, l, m, r);
+}
+
+fn sort(let xs) {
+    let i := 0;
+    let aux := [];
+    while (i < xs.size()) {
+        aux.append(xs[i]);
+        i++;
+    }
+    return mergesortR(xs, aux, 0, xs.size());
+}
+
+let a := [];
+let i := 0;
+while (i < 8) {
+    a.append(random(256));
+    i++;
+}
+println sort(a);

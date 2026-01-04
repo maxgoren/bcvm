@@ -44,7 +44,6 @@ class  ByteCodeGenerator {
         }
         void emitBinaryOperator(astnode* n) {
             if (n->token.getSymbol() == TK_ASSIGN) {
-                
                 genCode(n->right, false);
                 if (n->left->token.getSymbol() == TK_LB) {
                     emitListAccess(n->left, true);
@@ -96,6 +95,10 @@ class  ByteCodeGenerator {
                     emit(Instruction(decr)); 
                     genCode(n->left, true);
                     emitStore(n);
+                } break;
+                case TK_FLOOR: {
+                    genCode(n->left, false);
+                    emit(Instruction(floorval));
                 } break;
                 default:
                     genCode(n->left, false);
@@ -245,18 +248,22 @@ class  ByteCodeGenerator {
             emitStoreFuncInEnvironment(n, true);
         }
         void emitBlessExpr(astnode* n) {
-            int L1 = skipEmit(0);
-            skipEmit(1);
-            int i = 0;
-            for (auto x = n->right; x != nullptr; x = x->next) {
-                genCode(x, false);
-                emit(Instruction(stfield, ++i));
-            }
-            skipTo(L1);
             string name = n->left->token.getString();
             int cpIdx = symTable.lookupClass(name) == nullptr ? -1:symTable.lookupClass(name)->cpIdx;
-            emit(Instruction(mkstruct, cpIdx, i));
-            restore();
+            if (cpIdx == -1) {
+                return;
+            }
+            ClassObject* klass = symTable.lookupClass(name);
+            emit(Instruction(mkstruct, cpIdx, klass->scope->size()));
+            int i = 0;
+            auto it = klass->scope->iter();
+            for (auto x = n->right; x != nullptr; x = x->next) {
+                genExpression(x, false);
+                if (it.get().constPoolIndex == -1)
+                    it.get().constPoolIndex = symTable.getConstPool().insert(it.get().name);
+                emit(Instruction(stfield, symTable.getConstPool().get(it.get().constPoolIndex)));
+                it.next();
+            }
         }
         void emitFunctionCall(astnode* n) {
             if (noisey) cout<<"Compiling Function Call."<<endl;
@@ -269,11 +276,10 @@ class  ByteCodeGenerator {
             emit(Instruction(call, fn_info.constPoolIndex, argsCount, n->left->token.scopeLevel()));
         }
         void emitListConstructor(astnode* n) {
-            emit(Instruction(ldconst, symTable.getConstPool().insert(alloc.alloc(new deque<StackItem>()))));
+            emit(Instruction(mklist));
             if (n->left != nullptr) {
                 if (n->left->expr == RANGE_EXPR) {
                     genExpression(n->left, false);
-                    emit(Instruction(popstack));
                 } else {
                     for (astnode* it = n->left; it != nullptr; it = it->next) {
                         genExpression(it, false);
@@ -405,8 +411,8 @@ class  ByteCodeGenerator {
                 case CONST_EXPR:     { emitConstant(n);  } break;
                 case ID_EXPR:        { emitLoad(n, needLvalue); } break;
                 case BIN_EXPR:       { emitBinaryOperator(n); } break;
-                case UOP_EXPR:       { emitUnaryOperator(n);  } break;
-                case LAMBDA_EXPR:    { emitLambda(n);        } break;
+                case UOP_EXPR:       { emitUnaryOperator(n);  } break; 
+                case LAMBDA_EXPR:    { emitLambda(n);         } break;
                 case FUNC_EXPR:      { emitFunctionCall(n);   } break;
                 case LISTCON_EXPR:   { emitListConstructor(n); } break;
                 case SUBSCRIPT_EXPR: { emitListAccess(n, needLvalue); } break;

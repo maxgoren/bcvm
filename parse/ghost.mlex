@@ -5,6 +5,7 @@
 {"def", TK_FN}
 {"get", TK_GET}
 {"let", TK_LET}
+{"int", TK_INT}
 {"new", TK_NEW}
 {"pop", TK_POP}
 {"var", TK_LET}
@@ -16,6 +17,7 @@
 {"first", TK_FIRST}
 {"rest", TK_REST}
 {"empty", TK_EMPTY}
+{"floor", TK_FLOOR}
 {"while", TK_WHILE}
 {"false", TK_FALSE}
 {"class", TK_CLASS}

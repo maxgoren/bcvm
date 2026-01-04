@@ -129,8 +129,11 @@ class VM {
             if (verbLev > 1)
                 cout<<"Stored upval at "<<t.intval<<" in scope "<<(inst.operand[0].intval)<<endl;
         }
+        void makeList(Instruction& inst) {
+            opstk[++sp] = StackItem(alloc.alloc(new deque<StackItem>()));
+        }
         void loadIndexed(Instruction& inst) {
-            if (top(1).type == OBJECT) {
+            if (top(1).type == OBJECT && top(0).type == NUMBER) {
                 switch (top(1).objval->type) {
                     case LIST:
                         top(1) = (top(1).objval->list->at(top(0).numval)); sp--; 
@@ -328,11 +331,13 @@ class VM {
                 case ldaddr:    { loadAddress(inst); } break;
                 case mkclosure: { closeOver(inst); } break;
                 case mkstruct:  { instantiate(inst); } break;
-                case mkrange:   { makeRange(); }
+                case mklist:    { makeList(inst); } break;
+                case mkrange:   { makeRange(); } break;
                 case ldrand:    { randNumber(inst); } break;
                 case popstack:  { sp--; } break; 
-                case incr:     { top(0).numval += 1; } break;
-                case decr:     { top(0).numval -= 1; } break;
+                case incr:     { if (top(0).type == NUMBER) top(0).numval += 1; } break;
+                case decr:     { if (top(0).type == NUMBER) top(0).numval -= 1; } break;
+                case floorval: { if (top(0).type == NUMBER) top(0).numval = floor(top(0).numval); } break;
                 default:
                     break;
             }
